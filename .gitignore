@@ -1,0 +1,22 @@
+# Build artifacts
+build/
+bin/
+*.exe
+*.o
+*.obj
+
+# Test and output files
+output.pcap
+test_dpi.pcap
+tmp.txt
+
+# IDE / OS files
+.vscode/
+.vs/
+*.suo
+*.user
+*.opendb
+*.VC.db
+.DS_Store
+dpi_engine
+Untitled-1.md
