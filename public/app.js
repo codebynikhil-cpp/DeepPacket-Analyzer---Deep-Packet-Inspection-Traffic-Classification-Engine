@@ -17,6 +17,75 @@ function showToast(msg, type = 'success') {
 // ── Protocol Donut ───────────────────────────────────────
 let protoChart = null;
 
+// ── Throughput Line Chart ─────────────────────────────────
+let lineChart   = null;
+let ppsHistory  = [];
+let timeLabels  = [];
+let prevPackets = 0;
+
+function initLineChart() {
+    const ctx = document.getElementById('throughputChart').getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, 'rgba(59,130,246,0.25)');
+    gradient.addColorStop(1, 'rgba(59,130,246,0.0)');
+
+    lineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: timeLabels,
+            datasets: [{
+                label: 'Packets/sec',
+                data: ppsHistory,
+                borderColor: '#3b82f6',
+                backgroundColor: gradient,
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 5,
+                pointHoverBackgroundColor: '#3b82f6',
+                fill: true,
+                tension: 0.45
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 300 },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#111827',
+                    titleFont: { family: 'Inter', size: 12 },
+                    bodyFont: { family: 'Inter', size: 13, weight: '600' },
+                    padding: 10, cornerRadius: 7, displayColors: false,
+                    callbacks: {
+                        title: items => items[0].label,
+                        label: item  => `${item.raw} pkts/s`
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false, drawBorder: false }, ticks: { display: false } },
+                y: {
+                    grid: { color: '#f3f4f6', drawBorder: false },
+                    beginAtZero: true,
+                    ticks: { font: { family: 'Inter', size: 11 }, color: '#9ca3af', maxTicksLimit: 5 }
+                }
+            }
+        }
+    });
+}
+
+function updateLineChart(currentPackets) {
+    const pps = Math.max(0, currentPackets - prevPackets);
+    prevPackets = currentPackets;
+    const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    timeLabels.push(now);
+    ppsHistory.push(pps);
+    if (timeLabels.length > 60) { timeLabels.shift(); ppsHistory.shift(); }
+    if (lineChart) lineChart.update();
+}
+
 function renderProto(protocols, total) {
     const tcp  = protocols?.TCP  || 0;
     const udp  = protocols?.UDP  || 0;
@@ -220,6 +289,7 @@ function updateDashboard(data) {
     document.getElementById('statusText').textContent = 'Live · ' + new Date().toLocaleTimeString();
 
     renderProto(data.protocols, total);
+    updateLineChart(total);
     renderApps(data.applications);
     renderDns(data.dns);
     renderHttp(data.http);
@@ -237,6 +307,7 @@ async function fetchData() {
 }
 
 loadRules();
+initLineChart();
 fetchData();
 setInterval(fetchData, 1000);
 setInterval(loadRules, 5000);  // refresh rules every 5s

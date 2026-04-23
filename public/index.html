@@ -79,11 +79,22 @@
         <!-- ── Protocol Distribution ─────────────────── -->
         <section id="protocols" class="section">
             <div class="sh"><h2>Protocol Distribution</h2><span class="badge">IPv4 / IPv6 / ICMP</span></div>
-            <div class="card proto-card">
-                <div class="donut-wrap">
-                    <canvas id="protoChart" width="240" height="240"></canvas>
+            <div class="chart-row">
+                <!-- Donut -->
+                <div class="card proto-card">
+                    <div class="card-inner-title">Protocol Breakdown</div>
+                    <div class="donut-wrap">
+                        <canvas id="protoChart" width="220" height="220"></canvas>
+                    </div>
+                    <div class="proto-stats" id="protoStats"></div>
                 </div>
-                <div class="proto-stats" id="protoStats"></div>
+                <!-- Line Chart -->
+                <div class="card line-card">
+                    <div class="card-inner-title">Live Throughput <span class="chart-sub">packets / sec over time</span></div>
+                    <div class="line-chart-wrap">
+                        <canvas id="throughputChart"></canvas>
+                    </div>
+                </div>
             </div>
         </section>
 

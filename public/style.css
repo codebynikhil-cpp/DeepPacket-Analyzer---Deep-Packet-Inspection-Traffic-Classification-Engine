@@ -67,7 +67,12 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
 .kpi-sub { font-size:12px; color:var(--t4); margin-top:4px; }
 
 /* ── Protocol card ── */
-.proto-card { display:flex; align-items:center; padding:28px 32px; gap:40px; }
+.chart-row { display:grid; grid-template-columns:340px 1fr; gap:16px; align-items:stretch; }
+.proto-card { display:flex; flex-direction:column; align-items:center; padding:24px 20px; gap:0; }
+.card-inner-title { font-size:13px; font-weight:600; color:var(--t2); margin-bottom:16px; align-self:flex-start; }
+.chart-sub { font-size:12px; font-weight:400; color:var(--t4); margin-left:6px; }
+.line-card { display:flex; flex-direction:column; padding:20px 20px 12px; }
+.line-chart-wrap { flex:1; min-height:240px; position:relative; }
 .donut-wrap canvas { display:block; }
 .proto-stats { flex:1; display:flex; flex-direction:column; gap:14px; }
 .proto-row { display:flex; align-items:center; gap:12px; }
