@@ -1,0 +1,34 @@
+{
+  "packets": 77,
+  "bytes": 5738,
+  "dropped": 0,
+  "connections": 43,
+  "protocols": {
+    "TCP": 73,
+    "UDP": 4,
+    "ICMP": 0,
+    "IPv6": 0
+  },
+  "pps": 77000.0,
+  "applications": {
+    "HTTPS": 23,
+    "DNS": 4,
+    "Twitter/X": 3,
+    "Telegram": 1,
+    "Cloudflare": 1,
+    "Spotify": 1,
+    "Apple": 1,
+    "Google": 1,
+    "Zoom": 1,
+    "Amazon": 1,
+    "Instagram": 1,
+    "Facebook": 1,
+    "Discord": 1,
+    "YouTube": 1,
+    "GitHub": 1,
+    "TikTok": 1
+  },
+  "dns": ["www.google.com", "www.youtube.com", "www.facebook.com", "api.twitter.com"],
+  "http": ["GET example.com/", "GET httpbin.org/"],
+  "alerts": []
+}

@@ -114,11 +114,13 @@ bool PacketParser::parseIPv4(const uint8_t* data, size_t len,
     uint32_t src_ip;
     std::memcpy(&src_ip, ip_data + 12, 4);
     parsed.src_ip = ipToString(src_ip);
+    parsed.src_ip_num = src_ip;
     
     // Destination IP (bytes 16-19)
     uint32_t dest_ip;
     std::memcpy(&dest_ip, ip_data + 16, 4);
     parsed.dest_ip = ipToString(dest_ip);
+    parsed.dest_ip_num = dest_ip;
     
     parsed.has_ip = true;
     offset += ip_header_len;

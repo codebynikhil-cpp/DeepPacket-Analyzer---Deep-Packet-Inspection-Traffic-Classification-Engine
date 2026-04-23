@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepPacket Analyzer | Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+
+    <!-- ── Sidebar ──────────────────────────────────────── -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span>DeepPacket</span>
+        </div>
+        <nav>
+            <a class="nav-link active" href="#overview"   onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Overview</a>
+            <a class="nav-link"        href="#protocols"  onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Protocols</a>
+            <a class="nav-link"        href="#apps"       onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Applications</a>
+            <a class="nav-link"        href="#traffic"    onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> DNS / HTTP</a>
+            <a class="nav-link"        href="#rules"      onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Firewall Rules</a>
+            <a class="nav-link"        href="#alerts"     onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Alerts <span id="alertNavBadge" class="nav-badge" style="display:none">0</span></a>
+        </nav>
+        <div class="sidebar-status">
+            <span class="dot-pulse"></span>
+            <span id="statusText">Connecting…</span>
+        </div>
+    </aside>
+
+    <!-- ── Main ─────────────────────────────────────────── -->
+    <main class="main">
+
+        <!-- Topbar -->
+        <header class="topbar">
+            <div>
+                <h1 class="page-title">Network Traffic Dashboard</h1>
+                <p class="page-sub">Real-time deep packet inspection · C++ Engine</p>
+            </div>
+            <div class="topbar-right">
+                <div class="chip">Last update: <span id="lastUpdate">—</span></div>
+            </div>
+        </header>
+
+        <!-- ── Overview KPIs ─────────────────────────── -->
+        <section id="overview" class="section">
+            <div class="kpi-grid">
+                <div class="kpi">
+                    <div class="kpi-label">Total Packets</div>
+                    <div class="kpi-val" id="kpiPackets">—</div>
+                    <div class="kpi-sub">from PCAP capture</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Traffic Volume</div>
+                    <div class="kpi-val" id="kpiBytes">—</div>
+                    <div class="kpi-sub" id="kpiBytesSub">bytes observed</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Total Connections</div>
+                    <div class="kpi-val" id="kpiConns">—</div>
+                    <div class="kpi-sub">unique flows tracked</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Packets Dropped</div>
+                    <div class="kpi-val" id="kpiDropped">—</div>
+                    <div class="kpi-sub">by firewall rules</div>
+                </div>
+                <div class="kpi" id="kpiAlertCard">
+                    <div class="kpi-label">Security Alerts</div>
+                    <div class="kpi-val green" id="kpiAlerts">0</div>
+                    <div class="kpi-sub" id="kpiAlertSub">✓ System clean</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Protocol Distribution ─────────────────── -->
+        <section id="protocols" class="section">
+            <div class="sh"><h2>Protocol Distribution</h2><span class="badge">IPv4 / IPv6 / ICMP</span></div>
+            <div class="card proto-card">
+                <div class="donut-wrap">
+                    <canvas id="protoChart" width="240" height="240"></canvas>
+                </div>
+                <div class="proto-stats" id="protoStats"></div>
+            </div>
+        </section>
+
+        <!-- ── Application Breakdown ──────────────────── -->
+        <section id="apps" class="section">
+            <div class="sh"><h2>Application Classification</h2><span class="badge" id="appBadge">—</span></div>
+            <div class="card">
+                <table class="tbl">
+                    <thead><tr><th>#</th><th>Application</th><th>Connections</th><th>Share</th><th style="width:35%">Distribution</th></tr></thead>
+                    <tbody id="appsTbody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ── DNS & HTTP ─────────────────────────────── -->
+        <section id="traffic" class="section">
+            <div class="sh"><h2>Captured Traffic</h2><span class="badge">DNS &amp; HTTP</span></div>
+            <div class="two-col">
+                <div class="card log-card">
+                    <div class="log-hd"><span>DNS Queries</span><span class="pill" id="dnsPill">0</span></div>
+                    <ul class="log-ul" id="dnsList"></ul>
+                </div>
+                <div class="card log-card">
+                    <div class="log-hd"><span>HTTP Requests</span><span class="pill" id="httpPill">0</span></div>
+                    <ul class="log-ul" id="httpList"></ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Firewall Rules ─────────────────────────── -->
+        <section id="rules" class="section">
+            <div class="sh"><h2>Firewall Rules</h2><span class="badge" id="rulesBadge">0 active rules</span></div>
+
+            <!-- Add Rule Form -->
+            <div class="card rule-form-card">
+                <h3 class="rule-form-title">Add New Rule</h3>
+                <p class="rule-form-desc">Rules are saved to <code>rules.json</code> and loaded by the C++ engine on next run.</p>
+                <div class="rule-form">
+                    <select id="ruleType" class="rule-select">
+                        <option value="domain">Domain</option>
+                        <option value="ip">IP Address</option>
+                        <option value="app">Application</option>
+                        <option value="port">Port</option>
+                    </select>
+                    <input id="ruleValue" class="rule-input" type="text" placeholder="e.g. *.facebook.com" />
+                    <button class="btn-add" onclick="addRule()">Block</button>
+                </div>
+                <div class="rule-hints">
+                    <span><code>*.facebook.com</code> — wildcard domain</span>
+                    <span><code>192.168.1.5</code> — source IP</span>
+                    <span><code>TikTok</code> — app name</span>
+                    <span><code>4444</code> — suspicious port</span>
+                </div>
+            </div>
+
+            <!-- Active Rules Tables -->
+            <div class="two-col" style="margin-top:16px">
+                <div class="card rule-list-card">
+                    <div class="log-hd"><span>🌐 Blocked Domains</span><span class="pill" id="domainPill">0</span></div>
+                    <ul class="rule-ul" id="domainRules"></ul>
+                </div>
+                <div class="card rule-list-card">
+                    <div class="log-hd"><span>🔗 Blocked IPs</span><span class="pill" id="ipPill">0</span></div>
+                    <ul class="rule-ul" id="ipRules"></ul>
+                </div>
+            </div>
+            <div class="two-col" style="margin-top:16px">
+                <div class="card rule-list-card">
+                    <div class="log-hd"><span>📦 Blocked Apps</span><span class="pill" id="appPill">0</span></div>
+                    <ul class="rule-ul" id="appRules"></ul>
+                </div>
+                <div class="card rule-list-card">
+                    <div class="log-hd"><span>🔌 Blocked Ports</span><span class="pill" id="portPill">0</span></div>
+                    <ul class="rule-ul" id="portRules"></ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Alerts ─────────────────────────────────── -->
+        <section id="alerts" class="section" style="padding-bottom:48px">
+            <div class="sh"><h2>Security Alerts</h2><span class="badge" id="alertsBadge">0 events</span></div>
+            <div class="card" id="alertsCard">
+                <div class="empty-state" id="alertsEmpty">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    <p>No alerts — system is clean</p>
+                </div>
+                <table class="tbl" id="alertsTbl" style="display:none">
+                    <thead><tr><th>Severity</th><th>Description</th><th>Status</th></tr></thead>
+                    <tbody id="alertsTbody"></tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

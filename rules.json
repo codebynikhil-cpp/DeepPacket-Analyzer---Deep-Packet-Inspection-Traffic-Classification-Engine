@@ -1,0 +1,11 @@
+{
+  "blocked_ips": [],
+  "blocked_domains": [
+    ".facebook.com",
+    ".google.com"
+  ],
+  "blocked_apps": [
+    "facebook"
+  ],
+  "blocked_ports": []
+}

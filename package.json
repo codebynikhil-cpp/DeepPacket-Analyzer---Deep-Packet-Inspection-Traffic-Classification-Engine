@@ -1,0 +1,26 @@
+{
+  "name": "deeppacket-analyzer-real-time-packet-capture-and-deep-traffic-analysis-main",
+  "version": "1.0.0",
+  "description": "This document explains **everything** about this project - from basic networking concepts to the complete code architecture. After reading this, you should understand exactly how packets flow through the system without needing to read the code.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codebynikhil-cpp/DeepPacket-Analyzer-Real-time-packet-capture-and-deep-traffic-analysis.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/codebynikhil-cpp/DeepPacket-Analyzer-Real-time-packet-capture-and-deep-traffic-analysis/issues"
+  },
+  "homepage": "https://github.com/codebynikhil-cpp/DeepPacket-Analyzer-Real-time-packet-capture-and-deep-traffic-analysis#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
+  }
+}

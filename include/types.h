@@ -86,6 +86,13 @@ enum class AppType {
 std::string appTypeToString(AppType type);
 AppType sniToAppType(const std::string& sni);
 
+struct AppClassification {
+    AppType app = AppType::UNKNOWN;
+    std::string sni_or_host = "";
+    std::string http_method = "";
+    std::string http_path = "";
+};
+
 // ============================================================================
 // Connection State
 // ============================================================================

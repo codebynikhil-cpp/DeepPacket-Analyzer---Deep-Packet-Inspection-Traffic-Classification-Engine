@@ -81,29 +81,9 @@ public:
     static bool isQUICInitial(const uint8_t* payload, size_t length);
 };
 
-// ============================================================================
-// HTTP Host Header Extractor (for unencrypted HTTP)
-// ============================================================================
-class HTTPHostExtractor {
-public:
-    // Extract Host header from HTTP request
-    static std::optional<std::string> extract(const uint8_t* payload, size_t length);
-    
-    // Check if this looks like an HTTP request
-    static bool isHTTPRequest(const uint8_t* payload, size_t length);
-};
 
-// ============================================================================
-// DNS Query Extractor (to correlate domain names)
-// ============================================================================
-class DNSExtractor {
-public:
-    // Extract queried domain from DNS request
-    static std::optional<std::string> extractQuery(const uint8_t* payload, size_t length);
-    
-    // Check if this is a DNS query (not response)
-    static bool isDNSQuery(const uint8_t* payload, size_t length);
-};
+
+
 
 } // namespace DPI
 

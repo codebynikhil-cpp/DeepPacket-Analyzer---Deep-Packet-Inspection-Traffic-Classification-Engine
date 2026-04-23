@@ -4,11 +4,15 @@ bin/
 *.exe
 *.o
 *.obj
+packet_analyzer.exe
+app.exe
+node_modules/
 
 # Test and output files
 output.pcap
 test_dpi.pcap
 tmp.txt
+# Keep output.json and rules.json tracked as demo data
 
 # IDE / OS files
 .vscode/

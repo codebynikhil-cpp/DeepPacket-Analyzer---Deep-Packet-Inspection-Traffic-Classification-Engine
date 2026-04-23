@@ -68,6 +68,8 @@ struct ParsedPacket {
     uint8_t ip_version;
     std::string src_ip;
     std::string dest_ip;
+    uint32_t src_ip_num = 0;
+    uint32_t dest_ip_num = 0;
     uint8_t protocol;          // TCP=6, UDP=17, ICMP=1
     uint8_t ttl;
     
