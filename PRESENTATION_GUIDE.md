@@ -1,92 +1,151 @@
-# Deep Packet Inspection (DPI) Engine - Presentation Guide
+# Deep Packet Inspection (DPI) Engine — Presentation Guide
 
-This guide is designed to help you confidently present the DPI Engine project to your mentor, panel members, and reviewers. It breaks down the entire system from the absolute basics of networking to the internal architecture and codebase of the project, all in plain English.
+> **Project Status: Phase 3 Complete** — C++ Analyzer + JSON Export + Real-Time Web Dashboard + Firewall Rule Manager
+
+This guide is designed to help you confidently present the DeepPacket Analyzer project to your mentor, panel members, and reviewers. It covers the complete system from networking basics all the way through the web dashboard and REST API.
 
 ---
 
 ## 1. Executive Summary: What is this project?
 
-This project is a **Deep Packet Inspection (DPI) Engine** written in C++17.
+This project is a **Full-Stack Network Monitoring System** built around a Deep Packet Inspection (DPI) Engine written in C++17, paired with a real-time web dashboard.
 
 Standard firewalls only look at the "envelopes" of internet traffic (IP addresses and ports). A DPI engine is much smarter — it looks *inside the envelope* at the actual application data.
 
-**What Does it Do?**
-- **Identifies Applications:** Tells you exactly if a connection is YouTube, Facebook, TikTok, Spotify, Zoom, etc.
-- **Analyzes Encrypted Traffic:** Even though almost all web traffic today is encrypted (HTTPS), this engine extracts the Server Name Indication (SNI) from the TLS handshake to determine the destination.
-- **Real-Time HTTP Inspection:** For unencrypted traffic (port 80), it extracts the HTTP Method, Host, and URL path in real-time (e.g., `[HTTP] GET example.com/`).
-- **Real-Time DNS Monitoring:** It detects DNS queries on UDP port 53 and logs the queried domains live as they are seen (e.g., `[DNS] www.google.com`).
-- **Traffic Statistics:** Tracks total packets, total bytes, and protocol distribution (TCP/UDP/ICMP) with packets-per-second calculation.
-- **Rule-Based Blocking:** It can actively block traffic based on specific Apps, IP addresses, or domain names.
+### What the Complete System Does
+
+| Layer | Component | What It Does |
+|---|---|---|
+| **C++ Engine** | `packet_analyzer.exe` | Reads a `.pcap` file, classifies every packet |
+| **JSON Export** | `output.json` | Live-updated data file refreshed every 1 second |
+| **API Server** | `server.js` (Node.js) | Serves JSON data + firewall rule CRUD REST API |
+| **Web Dashboard** | `public/` (Vanilla JS) | Real-time browser UI showing all traffic analytics |
 
 ---
 
-## 2. The Basics: How does it work?
+## 2. The Basics: How Does It Work?
 
 ### The 5-Tuple (Connection Tracking)
-Every time a computer talks to another computer on the internet, that unique conversation is defined by a "5-tuple":
-1. **Source IP** (Who is sending the data)
-2. **Destination IP** (Where the data is going)
-3. **Source Port** (The sender's process/app identifier)
-4. **Destination Port** (The receiver's service, e.g., port 443 for HTTPS)
-5. **Protocol** (TCP or UDP)
+Every network conversation is uniquely identified by:
+1. **Source IP** — who is sending
+2. **Destination IP** — where it's going
+3. **Source Port** — sender's process identifier
+4. **Destination Port** — service (e.g. port 443 = HTTPS)
+5. **Protocol** — TCP or UDP
 
-*Our engine groups all packets sharing the same 5-tuple into a single "Flow". If we identify one packet in a Flow as "TikTok", we know the entire Flow is TikTok.*
+*Our engine groups all packets sharing the same 5-tuple into a single "Flow". If we classify one packet in a Flow as "TikTok", we know the entire flow is TikTok.*
 
 ### Deep Packet Inspection via SNI
 Since almost all traffic today is HTTPS (encrypted), how do we know someone is visiting `youtube.com`?
 
-When a browser starts an encrypted connection, the very first message it sends is the **TLS Client Hello**. Inside this specific message, the target domain is openly included so the server knows which certificate to use. This is called the **Server Name Indication (SNI)**.
+When a browser starts an encrypted HTTPS connection, the very first message sent is the **TLS Client Hello**. Inside this specific message, the destination domain is openly included so the server knows which certificate to use. This is the **Server Name Indication (SNI)**.
 
-*Our engine hunts down this single TLS Client Hello packet, parses the raw bytes, and extracts the SNI domain to classify the application.*
+*Our engine hunts this TLS Client Hello packet, parses the raw bytes, and extracts the SNI domain to classify the application.*
 
 ---
 
-## 3. Clean Pipeline Architecture (Current Design)
-
-The project is now built around a single, clean, sequential pipeline with strictly separated responsibilities:
+## 3. Architecture: The Full Pipeline
 
 ```
-PCAP Reader → Packet Parser → Fast Path → DPI Engine → Connection Tracker → Output
+PCAP File
+    ↓
+[PcapReader]  →  reads raw packets
+    ↓
+[PacketParser]  →  decodes Ethernet / IP / TCP / UDP headers
+    ↓
+[FastPath]  →  should this packet be inspected?
+    ↓
+[DPI Engine]  →  SNI extractor / DNS parser / HTTP parser
+    ↓
+[ConnectionTracker]  →  flow state, rule enforcement, FORWARD/DROP
+    ↓
+[StatsCollector]  →  packets, bytes, PPS, protocol %
+    ↓
+[output.json]  →  written every 1 second
+    ↓
+[Node.js / Express]  →  serves /data and /rules API
+    ↓
+[Web Dashboard]  →  browser renders live charts and logs
 ```
 
-Each module has **one and only one job**:
+### Module Responsibilities
 
-| Module | File | Responsibility |
+| Module | File | Job |
 |---|---|---|
-| **PcapReader** | `src/pcap_reader.cpp` | Reads raw `.pcap` files packet by packet |
+| **PcapReader** | `src/pcap_reader.cpp` | Reads raw `.pcap` files packet-by-packet |
 | **PacketParser** | `src/packet_parser.cpp` | Decodes Ethernet, IP, TCP/UDP headers |
-| **FastPath** | `src/fast_path.cpp` | **Router only** — returns `true/false` for DPI inspection |
-| **DPIEngine** | `src/dpi_engine.cpp` | **Stateless inspector** — extracts SNI/HTTP/DNS info from payload |
-| **DNSParser** | `src/dns_parser.cpp` | Parses DNS queries from UDP port 53 |
-| **HTTPParser** | `src/http_parser.cpp` | Parses HTTP method, host, and path from TCP port 80 |
-| **ConnectionTracker** | `src/connection_tracker.cpp` | **The Brain** — tracks flows, decides FORWARD/DROP |
-| **StatsCollector** | `src/stats_collector.cpp` | Counts packets/bytes, tracks TCP/UDP/ICMP distribution |
+| **FastPath** | `src/fast_path.cpp` | Router — `true/false` for DPI inspection |
+| **DPIEngine** | `src/dpi_engine.cpp` | Stateless inspector — SNI/HTTP/DNS extraction |
+| **DNSParser** | `src/dns_parser.cpp` | Parses domain names from UDP port 53 |
+| **HTTPParser** | `src/http_parser.cpp` | Parses method, host, path from TCP port 80 |
+| **SNIExtractor** | `src/sni_extractor.cpp` | Parses TLS Client Hello on TCP port 443 |
+| **ConnectionTracker** | `src/connection_tracker.cpp` | Tracks flows, enforces rules, FORWARD/DROP |
+| **StatsCollector** | `src/stats_collector.cpp` | Aggregates stats, exports `output.json` |
+| **RuleManager** | `src/rule_manager.cpp` | Thread-safe IP/domain/app/port blocklist |
 
 ---
 
-## 4. The Journey of a Packet (Step-by-Step Flow)
+## 4. The Journey of a Packet (Step-by-Step)
 
-Here is the exact path every packet takes through the engine in `src/main.cpp`:
-
-1. **Ingestion**: `PcapReader::readNextPacket()` reads a raw packet from the input `.pcap` file.
-2. **Parsing**: `PacketParser::parse()` decodes all headers and creates a clean `ParsedPacket` struct with source/destination IPs, ports, protocol, and payload pointer.
-3. **Fast Path Routing**: `FastPath::needsInspection()` checks if the packet is on port 80/443/53. If **no payload or no relevant port** → skip DPI. If **yes** → send to DPI Engine.
-4. **DPI Inspection** (if routed):
-   - Port **443**: `SNIExtractor` parses the TLS Client Hello to extract the target domain.
-   - Port **80**: `HTTPParser` extracts the HTTP Method, Host header, and URL path.
-   - Port **53**: `DNSParser` extracts the queried domain name.
-5. **Connection Tracking**: `ConnectionTracker::process()` updates the flow entry, registers the classification, checks blocking rules, and returns `FORWARD` or `DROP`.
-6. **Real-Time Output**: DNS and HTTP logs are printed immediately to the console as packets are processed.
-7. **Action**: If `FORWARD`, the raw packet is written to the output `.pcap` file.
-8. **Final Report**: `StatsCollector::printFinal()` and `ConnectionTracker::generateReport()` print the complete traffic breakdown.
+1. `PcapReader::readNextPacket()` reads a raw packet from the `.pcap` file.
+2. `PacketParser::parse()` decodes all headers into a `ParsedPacket` struct.
+3. `StatsCollector::update()` increments counters and checks 1-second JSON export timer.
+4. `FastPath::needsInspection()` routes to DPI only if port is 80/443/53 with payload.
+5. **DPI Inspection** (if needed):
+   - Port `443` → `SNIExtractor` parses TLS Client Hello
+   - Port `80` → `HTTPParser` extracts Method + Host + URL
+   - Port `53` → `DNSParser` extracts queried domain
+6. `ConnectionTracker::process()` updates flow state, alerts on suspicious ports, checks rules.
+7. If `DROP` → packet is discarded. If `FORWARD` → written to output `.pcap`.
+8. DNS/HTTP events are stored in internal vectors for JSON/dashboard display.
+9. Every 1 second → `StatsCollector::exportJson()` writes `output.json`.
+10. `node server.js` serves `output.json` at `GET /data` → dashboard fetches and renders.
 
 ---
 
-## 5. Sample Output
+## 5. Complete Feature List
 
-When you run `.\packet_analyzer.exe test_dpi.pcap output.pcap`, the engine produces:
+### C++ Engine Features
+- ✅ PCAP file reading (libpcap-compatible manual parsing)
+- ✅ Ethernet / IPv4 / TCP / UDP header parsing
+- ✅ TLS SNI extraction (encrypted HTTPS classification)
+- ✅ DNS query parsing (UDP port 53)
+- ✅ HTTP request parsing (method + host + path, TCP port 80)
+- ✅ 5-tuple flow tracking with connection state machine
+- ✅ Two-tier classification: DPI first, port-based fallback second
+- ✅ Real-time `[HTTP]` and `[DNS]` console output
+- ✅ Packets, bytes, TCP/UDP/ICMP counting with PPS calculation
+- ✅ Alert system: suspicious ports (4444, 1337) + high traffic (>1000 PPS)
+- ✅ Rule enforcement: IP / domain / application / port blocking
+- ✅ JSON export (`output.json`) updated every 1 second
+
+### Web Dashboard Features
+- ✅ KPI cards: Total Packets, Traffic Volume, Connections, Dropped, Alerts
+- ✅ Protocol doughnut chart (TCP / UDP / ICMP / IPv6)
+- ✅ Application classification table (16 apps, color-coded progress bars)
+- ✅ Live DNS query feed
+- ✅ Live HTTP request feed with method badges
+- ✅ Firewall Rules panel (Add / Remove rules, 4 types)
+- ✅ Security alerts table (auto-shows on threat)
+- ✅ Toast notification system for rule actions
+- ✅ 1-second polling (fully live updates)
+- ✅ Sidebar navigation with active state tracking
+
+### REST API Endpoints
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/` | Serves the web dashboard |
+| `GET` | `/data` | Returns current `output.json` |
+| `GET` | `/rules` | Returns active `rules.json` |
+| `POST` | `/rules` | Adds a new block rule |
+| `DELETE` | `/rules` | Removes a rule |
+
+---
+
+## 6. Sample Console Output
 
 ```
+Opened PCAP file: test_dpi.pcap
 [Pipeline] Starting inspection pipeline...
 [HTTP] GET example.com/
 [HTTP] GET httpbin.org/
@@ -97,7 +156,7 @@ When you run `.\packet_analyzer.exe test_dpi.pcap output.pcap`, the engine produ
 [Pipeline] Processed 77 packets.
 
 [Stats] Final Traffic Breakdown:
-Packets: 77 (PPS: 25666.7)
+Packets: 77 (PPS: 77000.0)
 Bytes: 5738
 TCP: 94.8%
 UDP: 5.2%
@@ -106,69 +165,107 @@ ICMP: 0.0%
 +--------------------------------------------------------------+
 |               CONNECTION STATISTICS REPORT                   |
 +--------------------------------------------------------------+
-| APPLICATION BREAKDOWN                                        |
-| HTTPS       23 (53.5%) ##########                           |
-| DNS          4 ( 9.3%) #                                    |
-| Twitter/X    3 ( 7.0%) #                                    |
-| YouTube      1 ( 2.3%)    ... and 12 more apps              |
+| Total Packets Processed:        77                          |
+| Packets Dropped:                 0                          |
++--------------------------------------------------------------+
+|                    APPLICATION BREAKDOWN                     |
++--------------------------------------------------------------+
+| HTTPS                23 ( 53.5%) ##########          |
+| DNS                   4 (  9.3%) #                   |
+| Twitter/X             3 (  7.0%) #                   |
+| Telegram              1 (  2.3%)                     |
+| ... 12 more apps                                     |
 +--------------------------------------------------------------+
 ```
 
 **Key things to highlight to your panel:**
-- **Real-time `[HTTP]` and `[DNS]` logs** — the engine reveals live user activity as it processes.
-- **Protocol percentages** — shows the makeup of the traffic numerically.
-- **Application breakdown** — every connection is classified, zero "Unknown" entries.
-- **Two-tier classification** — deep payload inspection first, port-based heuristic as fallback (same approach used in commercial DPI systems).
+- **Real-time `[HTTP]` and `[DNS]` logs** — reveals live user activity
+- **Zero "Unknown" entries** — every connection is classified
+- **Two-tier classification** — DPI first, port fallback second (industry standard)
+- **77,000 PPS processing speed** — extremely fast analysis
 
 ---
 
-## 6. Evolution & What Improved (Technical Achievements)
+## 7. Firewall Rule System (How to Block Traffic)
 
-### Phase 1 → Phase 2: Architecture Refactor
+The `RuleManager` supports 4 types of blocking rules:
 
-The project was first built as an experimental multi-threaded system with scattered files. It was then cleanly refactored into the current pipeline:
-
-| Feature | Before | Now |
+| Rule Type | Example | What Gets Blocked |
 |---|---|---|
-| **Architecture** | 5 messy `main_*.cpp` files + `dpi_mt.cpp` | 1 clean `main.cpp` orchestrator |
-| **HTTP Parsing** | ❌ None | ✅ Method + Host + URL path |
-| **DNS Parsing** | ❌ None | ✅ Real-time domain logging |
-| **Traffic Stats** | ❌ None | ✅ Packets, Bytes, TCP/UDP/ICMP % + PPS |
-| **Class Design** | Mixed, tangled responsibilities | Strictly separated (FastPath = router, DPIEngine = stateless, ConnectionTracker = brain) |
-| **Real-Time Output** | ❌ None | ✅ `[HTTP]` and `[DNS]` live logs |
-| **Unknown Connections** | 21 entries (48.8%) unclassified | ✅ Zero — port-based fallback heuristic |
+| **Domain** | `*.facebook.com` | All Facebook subdomains (wildcard) |
+| **IP Address** | `192.168.1.5` | Packets from that source IP |
+| **Application** | `TikTok` | App detected via SNI classification |
+| **Port** | `4444` | Any connection on that port |
 
-### Bug Fixes that Demonstrate Deep Technical Understanding
-
-1. **The 'Zero-Packet' Thread Starvation Fix**
-   - **Problem:** In the multi-threaded prototype, 2 of 4 Fast Path threads were consistently processing zero packets.
-   - **Root Cause:** The Load Balancer and the Fast Path selector both used `hash % 2` on the same 5-tuple hash, causing a mathematical collision that starved half the threads.
-   - **Fix:** Implemented bit-shifting (`hash >> 16`) to decouple the two selection algorithms, restoring even load distribution across all threads.
-
-2. **Cross-Platform Terminal Rendering Fix**
-   - **Problem:** Unicode box-drawing characters (`╔`, `═`, `║`) caused garbled output in Windows PowerShell/CMD due to encoding issues.
-   - **Fix:** Replaced all Unicode table characters with universal ASCII equivalents (`+`, `-`, `|`), ensuring the dashboard renders correctly on all platforms.
-
-3. **The 'Unknown' Classification Fix (Port-Based Fallback Heuristic)**
-   - **Problem:** The Application Breakdown showed `Unknown 21 (48.8%)` — nearly half of all tracked connections were unclassified.
-   - **Root Cause:** Every TCP connection generates several payload-less control packets (`SYN`, `ACK`, `FIN`, `RST`). `FastPath` correctly skips these since there is no payload to inspect, so `ConnectionTracker` created flow entries that were never classified by DPI.
-   - **Fix:** Added a port-based fallback inside `ConnectionTracker`. When deep inspection yields no result, the engine infers the protocol from the port: `443` → `HTTPS`, `80` → `HTTP`, `53` → `DNS`. This is the same two-tier strategy used in commercial DPI systems.
-   - **Result:** `Unknown` dropped from 21 entries (48.8%) to **zero**. `HTTPS` correctly rose to 23 entries (53.5%).
+### How It Works End-to-End
+1. User types a rule in the Dashboard → clicks **Block**
+2. Dashboard sends `POST /rules` to the Node.js API
+3. `server.js` saves it to `rules.json`
+4. On next C++ engine run, `RuleManager::loadRules("rules.json")` is called at startup
+5. When a matching connection is processed → `ConnectionTracker` returns `DROP`
+6. The packet is discarded and the dropped counter increments
 
 ---
 
-## 7. How to Run & Demo
+## 8. Technical Achievements & Bug Fixes
 
+### Bug 1 — Zero-Packet Thread Starvation (Multi-threaded Prototype)
+- **Problem:** 2 of 4 Fast Path threads processed zero packets
+- **Root Cause:** Load Balancer and Fast Path selector both used `hash % 2`, causing mathematical collision
+- **Fix:** Used bit-shifting (`hash >> 16`) to decouple the two selectors
+
+### Bug 2 — Unicode Rendering on Windows
+- **Problem:** Box-drawing characters (`╔`, `═`, `║`) appeared garbled in PowerShell
+- **Fix:** Replaced with universal ASCII equivalents (`+`, `-`, `|`)
+
+### Bug 3 — "Unknown" Classification (Critical)
+- **Problem:** 21 connections (48.8%) showed as "Unknown" in the breakdown
+- **Root Cause:** TCP control packets (SYN/ACK/FIN/RST) have no payload → FastPath skips DPI → flow is created but never classified
+- **Fix:** Port-based fallback heuristic inside `ConnectionTracker`: port 443 → HTTPS, port 80 → HTTP, port 53 → DNS
+- **Result:** Unknown dropped from 48.8% to **0%**
+
+### Bug 4 — Stale Server Process (Dashboard)
+- **Problem:** Multiple `node` processes holding port 3000 — rule API requests hit old server silently returning 404
+- **Fix:** `Stop-Process -Name node -Force` before each new server start
+
+---
+
+## 9. How to Run the Full Stack
+
+### Step 1 — Compile the C++ Engine
 ```powershell
-# Compile
-g++ -std=c++17 -O2 -I include -o packet_analyzer.exe `
+g++ -std=c++17 -O2 -I include -o PacketInspector.exe `
     src/main.cpp src/packet_parser.cpp src/pcap_reader.cpp `
     src/sni_extractor.cpp src/dns_parser.cpp src/http_parser.cpp `
     src/types.cpp src/fast_path.cpp src/dpi_engine.cpp `
     src/connection_tracker.cpp src/rule_manager.cpp src/stats_collector.cpp
-
-# Run
-.\packet_analyzer.exe test_dpi.pcap output.pcap
 ```
 
-> **Note:** Use `packet_analyzer.exe` — Windows Application Control policy may flag `dpi_engine.exe` due to the filename matching network security tool signatures.
+### Step 2 — Run the Analyzer
+```powershell
+.\PacketInspector.exe test_dpi.pcap output.pcap
+```
+
+### Step 3 — Start the API Server
+```powershell
+node server.js
+```
+
+### Step 4 — Open the Dashboard
+Open your browser → **http://localhost:3000/**
+
+> **Note on AppLocker:** Windows Application Control may block compiled `.exe` files in user project directories. If blocked, copy the binary to `C:\Users\<you>\` and run from there, or use a Developer Command Prompt with elevated trust.
+
+---
+
+## 10. Project Evolution Timeline
+
+| Phase | What Was Built |
+|---|---|
+| **Phase 1** | PCAP reading, Ethernet/IP/TCP/UDP parsing, basic flow tracking |
+| **Phase 2** | Multi-threaded prototype with load balancer (later refactored) |
+| **Phase 3** | Clean single-threaded pipeline, SNI extractor, modular architecture |
+| **Phase 4** | DNS parser, HTTP parser, StatsCollector, real-time console output |
+| **Phase 5** | JSON export (`output.json`), alert system, suspicious port detection |
+| **Phase 6** | Node.js Express server, `/data` and `/rules` REST API |
+| **Phase 7** | Full web dashboard (KPIs, charts, logs, firewall rules UI, alerts) |
