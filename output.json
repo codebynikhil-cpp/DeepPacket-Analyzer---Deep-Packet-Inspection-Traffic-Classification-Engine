@@ -1,39 +1,32 @@
 {
   "packets": 231,
-  "bytes": 52840,
-  "dropped": 12,
-  "connections": 87,
-  "pps": 231000.0,
+  "bytes": 59269,
+  "dropped": 7,
+  "connections": 18,
   "protocols": {
-    "TCP": 122,
-    "UDP": 93,
-    "ICMP": 16
+    "TCP": 102,
+    "UDP": 97,
+    "ICMP": 32
   },
   "applications": {
-    "HTTPS": 42,
-    "DNS": 28,
-    "VoIP/RTP": 25,
-    "UDP-Stream": 30,
-    "HTTP": 10,
-    "NTP": 6,
-    "QUIC": 3,
-    "Twitter/X": 3,
-    "Telegram": 2,
-    "Cloudflare": 2,
-    "Spotify": 2,
-    "Zoom": 2,
-    "Discord": 2,
-    "YouTube": 2,
-    "GitHub": 2,
-    "TikTok": 2,
-    "Netflix": 2,
-    "Amazon": 2,
-    "Instagram": 2,
-    "Microsoft": 2,
-    "Apple": 2,
-    "WhatsApp": 2,
-    "Twitch": 2,
-    "Syslog": 5
+    "Unknown": 74,
+    "DNS": 14,
+    "HTTPS": 5,
+    "Twitter/X": 4,
+    "Google": 3,
+    "Cloudflare": 1,
+    "Amazon": 1,
+    "Discord": 1,
+    "Facebook": 1,
+    "YouTube": 1,
+    "GitHub": 1,
+    "Zoom": 1,
+    "Spotify": 1,
+    "Telegram": 1,
+    "TikTok": 1,
+    "Apple": 1,
+    "WhatsApp": 1,
+    "Instagram": 1
   },
   "dns": [
     "www.google.com",
@@ -59,9 +52,8 @@
     "GET test-server.local/api/v1/status"
   ],
   "alerts": [
-    "Suspicious port 4444 from 192.168.1.50",
-    "Suspicious port 1337 from 192.168.1.51",
-    "Suspicious port 31337 from 192.168.1.52",
-    "Suspicious port 4899 from 10.0.0.99"
+    "High traffic detected from 192.168.1.50 (1200 pps)",
+    "Suspicious port scan detected on port 22 from 10.0.0.44",
+    "DNS exfiltration attempt: encoded.malicious-domain.com"
   ]
 }
