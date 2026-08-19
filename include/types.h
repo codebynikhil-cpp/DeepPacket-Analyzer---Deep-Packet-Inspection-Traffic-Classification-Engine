@@ -61,31 +61,74 @@ enum class AppType {
     DNS,
     TLS,
     QUIC,
-    // Specific applications (detected via SNI)
+    // Specific applications (detected via SNI / Host / DNS)
+    // Search Engines & Big Tech
     GOOGLE,
-    FACEBOOK,
-    YOUTUBE,
-    TWITTER,
-    INSTAGRAM,
-    NETFLIX,
-    AMAZON,
     MICROSOFT,
     APPLE,
+    AMAZON,
+    CLOUDFLARE,
+    
+    // Social & Messaging
+    FACEBOOK,
+    INSTAGRAM,
     WHATSAPP,
+    TWITTER,
     TELEGRAM,
     TIKTOK,
-    SPOTIFY,
-    ZOOM,
     DISCORD,
-    GITHUB,
-    CLOUDFLARE,
-    WIKIPEDIA,
     REDDIT,
+    LINKEDIN,
+    SNAPCHAT,
+    PINTEREST,
+    
+    // Video & Streaming & Media
+    YOUTUBE,
+    NETFLIX,
+    SPOTIFY,
+    TWITCH,
+    DISNEYPLUS,
+    HULU,
+    SOUNDCLOUD,
+    
+    // AI, Productivity & Collaboration
     OPENAI,
     NOTION,
-    LEETCODE,
-    LINKEDIN,
+    ZOOM,
+    SLACK,
+    TEAMS,
+    CANVA,
+    FIGMA,
+    TRELLO,
+    
+    // Developer & Tech / Learning Platforms
+    GITHUB,
+    GITLAB,
+    BITBUCKET,
     STACKOVERFLOW,
+    LEETCODE,
+    WIKIPEDIA,
+    MEDIUM,
+    NPM,
+    DOCKER,
+    HUGGINGFACE,
+    KAGGLE,
+    GEEKSFORGEEKS,
+    CODECHEF,
+    HACKERRANK,
+    
+    // Gaming & Entertainment
+    STEAM,
+    ROBLOX,
+    EPICGAMES,
+    RIOTGAMES,
+    
+    // E-Commerce & Services
+    EBAY,
+    ALIEXPRESS,
+    PAYPAL,
+    UBER,
+    
     // Add more as needed
     APP_COUNT  // Keep this last for counting
 };

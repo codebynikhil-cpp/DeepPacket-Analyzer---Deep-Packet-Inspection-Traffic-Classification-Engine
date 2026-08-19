@@ -159,6 +159,15 @@ def main():
         ('13.107.42.16',    'linkedin.com'),
         ('151.101.65.140',  'medium.com'),
         ('54.230.1.10',     'notion.so'),
+        ('23.52.167.90',    'leetcode.com'),
+        ('172.65.251.78',   'gitlab.com'),
+        ('54.148.33.10',    'slack.com'),
+        ('104.16.101.5',    'npmjs.com'),
+        ('104.18.12.34',    'registry.hub.docker.com'),
+        ('104.18.2.10',     'huggingface.co'),
+        ('198.35.26.96',    'en.wikipedia.org'),
+        ('104.26.15.220',   'www.geeksforgeeks.org'),
+        ('104.16.50.1',     'www.canva.com'),
     ]
 
     for dst_ip, sni in tls_conns:
