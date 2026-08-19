@@ -22,41 +22,20 @@ AppClassification DPIEngine::inspect(const PacketAnalyzer::ParsedPacket& pkt) {
                 return result;
             }
             
-            // Substring heuristic scan for TLS Client Hello handshakes
-            std::string payload_str(reinterpret_cast<const char*>(pkt.payload_data), std::min<size_t>(pkt.payload_length, 1024));
-            if (payload_str.find("wikipedia.org") != std::string::npos || payload_str.find("wikimedia.org") != std::string::npos) {
-                result.sni_or_host = "wikipedia.org";
-                result.app = AppType::WIKIPEDIA;
-                return result;
+            // Substring heuristic scan for TLS Client Hello handshakes containing domain names
+            std::string payload_str;
+            payload_str.reserve(std::min<size_t>(pkt.payload_length, 2048));
+            for (size_t i = 0; i < std::min<size_t>(pkt.payload_length, 2048); ++i) {
+                char c = static_cast<char>(pkt.payload_data[i]);
+                payload_str += (c >= 32 && c <= 126) ? c : ' ';
             }
-            if (payload_str.find("reddit.com") != std::string::npos || payload_str.find("redd.it") != std::string::npos) {
-                result.sni_or_host = "reddit.com";
-                result.app = AppType::REDDIT;
-                return result;
-            }
-            if (payload_str.find("youtube.com") != std::string::npos || payload_str.find("googlevideo.com") != std::string::npos || payload_str.find("ytimg") != std::string::npos) {
-                result.sni_or_host = "youtube.com";
-                result.app = AppType::YOUTUBE;
-                return result;
-            }
-            if (payload_str.find("openai.com") != std::string::npos || payload_str.find("chatgpt.com") != std::string::npos) {
-                result.sni_or_host = "chatgpt.com";
-                result.app = AppType::OPENAI;
-                return result;
-            }
-            if (payload_str.find("leetcode.com") != std::string::npos) {
-                result.sni_or_host = "leetcode.com";
-                result.app = AppType::LEETCODE;
-                return result;
-            }
-            if (payload_str.find("linkedin.com") != std::string::npos) {
-                result.sni_or_host = "linkedin.com";
-                result.app = AppType::LINKEDIN;
-                return result;
-            }
-            if (payload_str.find("stackoverflow.com") != std::string::npos) {
-                result.sni_or_host = "stackoverflow.com";
-                result.app = AppType::STACKOVERFLOW;
+            
+            // Search for recognized application domains dynamically
+            AppType found_app = sniToAppType(payload_str);
+            if (found_app != AppType::UNKNOWN && found_app != AppType::HTTPS) {
+                result.app = found_app;
+                // Attempt to extract matched word as sni_or_host
+                result.sni_or_host = appTypeToString(found_app);
                 return result;
             }
         } 

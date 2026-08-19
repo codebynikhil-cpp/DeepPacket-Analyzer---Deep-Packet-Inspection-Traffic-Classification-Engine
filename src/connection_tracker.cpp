@@ -71,10 +71,27 @@ PacketAction ConnectionTracker::process(const PacketAnalyzer::ParsedPacket& pkt,
     }
 
     // If DPI classified it, apply the full classification
-    if (classification.has_value() && conn->state != ConnectionState::CLASSIFIED) {
-        conn->app_type = classification->app;
-        conn->sni = classification->sni_or_host;
-        conn->state = ConnectionState::CLASSIFIED;
+    // Also allow updating if previous classification was generic (e.g. HTTPS/HTTP/UNKNOWN) and we now found a specific app!
+    bool is_specific_app = (classification.has_value() && 
+                            classification->app != AppType::UNKNOWN && 
+                            classification->app != AppType::HTTPS && 
+                            classification->app != AppType::HTTP && 
+                            classification->app != AppType::TLS);
+    bool should_update = (classification.has_value() && 
+                          (conn->state != ConnectionState::CLASSIFIED || 
+                           conn->app_type == AppType::UNKNOWN || 
+                           conn->app_type == AppType::HTTPS || 
+                           conn->app_type == AppType::HTTP ||
+                           is_specific_app));
+
+    if (should_update) {
+        if (conn->state != ConnectionState::CLASSIFIED || is_specific_app || conn->sni.empty()) {
+            conn->app_type = classification->app;
+            if (!classification->sni_or_host.empty()) {
+                conn->sni = classification->sni_or_host;
+            }
+            conn->state = ConnectionState::CLASSIFIED;
+        }
         
         // Output DNS queries in real-time; also parse DNS *responses* to learn IP mappings
         if ((pkt.src_port == 53 || pkt.dest_port == 53) && pkt.payload_data) {
