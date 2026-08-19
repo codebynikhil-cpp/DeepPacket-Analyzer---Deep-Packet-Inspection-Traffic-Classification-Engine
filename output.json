@@ -1,59 +1,11 @@
 {
-  "packets": 231,
-  "bytes": 59269,
-  "dropped": 7,
-  "connections": 18,
-  "protocols": {
-    "TCP": 102,
-    "UDP": 97,
-    "ICMP": 32
-  },
-  "applications": {
-    "Unknown": 74,
-    "DNS": 14,
-    "HTTPS": 5,
-    "Twitter/X": 4,
-    "Google": 3,
-    "Cloudflare": 1,
-    "Amazon": 1,
-    "Discord": 1,
-    "Facebook": 1,
-    "YouTube": 1,
-    "GitHub": 1,
-    "Zoom": 1,
-    "Spotify": 1,
-    "Telegram": 1,
-    "TikTok": 1,
-    "Apple": 1,
-    "WhatsApp": 1,
-    "Instagram": 1
-  },
-  "dns": [
-    "www.google.com",
-    "www.youtube.com",
-    "www.facebook.com",
-    "api.twitter.com",
-    "www.netflix.com",
-    "open.spotify.com",
-    "discord.com",
-    "zoom.us",
-    "www.amazon.com",
-    "www.reddit.com",
-    "www.github.com",
-    "www.tiktok.com",
-    "cdnjs.cloudflare.com",
-    "fonts.googleapis.com"
-  ],
-  "http": [
-    "GET example.com/",
-    "GET httpbin.org/get",
-    "GET stackoverflow.com/questions",
-    "GET developers.google.com/apis",
-    "GET test-server.local/api/v1/status"
-  ],
-  "alerts": [
-    "High traffic detected from 192.168.1.50 (1200 pps)",
-    "Suspicious port scan detected on port 22 from 10.0.0.44",
-    "DNS exfiltration attempt: encoded.malicious-domain.com"
-  ]
+  "packets": 330,
+  "bytes": 81397,
+  "connections": 166,
+  "dropped": 26,
+  "protocols": { "TCP": 152, "UDP": 138 },
+  "applications": {"Amazon": 1, "Apple": 1, "Cloudflare": 1, "DNS": 20, "Discord": 1, "Facebook": 1, "GitHub": 1, "Google": 3, "HTTP": 1, "HTTPS": 40, "Instagram": 1, "Spotify": 1, "Telegram": 1, "TikTok": 1, "Twitter/X": 5, "Unknown": 84, "WhatsApp": 1, "YouTube": 1, "Zoom": 1},
+  "dns": ["www.google.com", "www.youtube.com", "www.facebook.com", "api.twitter.com", "www.netflix.com", "open.spotify.com", "discord.com", "zoom.us", "www.amazon.com", "www.reddit.com", "www.github.com", "www.tiktok.com", "cdnjs.cloudflare.com", "fonts.googleapis.com", "api.openai.com", "cdn.discordapp.com", "raw.githubusercontent.com", "s3.amazonaws.com", "edge.microsoft.com", "valortant.com"],
+  "http": ["GET example.com/", "GET httpbin.org/get", "POST httpbin.org/post", "GET stackoverflow.com/questions", "GET developers.google.com/apis", "GET test-server.local/api/v1/status", "POST router.local/login", "GET internal-wiki.local/index.php"],
+  "alerts": ["Suspicious port 4444", "Suspicious port 4444", "Suspicious port 4444", "Suspicious port 4444", "Suspicious port 1337", "Suspicious port 1337", "Suspicious port 1337", "Suspicious port 1337"]
 }

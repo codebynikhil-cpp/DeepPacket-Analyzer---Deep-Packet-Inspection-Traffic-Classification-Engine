@@ -42,13 +42,15 @@ void StatsCollector::printMetrics(double pps) {
     std::cout << "ICMP: " << std::fixed << std::setprecision(1) << icmp_pct << "%\n";
 }
 
-void StatsCollector::exportJson(const std::string& filename, const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& alerts, const std::map<std::string, size_t>& apps) {
+void StatsCollector::exportJson(const std::string& filename, const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& alerts, const std::map<std::string, size_t>& apps, size_t connections, size_t dropped) {
     std::ofstream out(filename);
     if (!out.is_open()) return;
     
     out << "{\n";
     out << "  \"packets\": " << total_packets_ << ",\n";
     out << "  \"bytes\": " << total_bytes_ << ",\n";
+    out << "  \"connections\": " << connections << ",\n";
+    out << "  \"dropped\": " << dropped << ",\n";
     out << "  \"protocols\": { \"TCP\": " << tcp_packets_ << ", \"UDP\": " << udp_packets_ << " },\n";
     
     out << "  \"applications\": {";
@@ -86,7 +88,7 @@ void StatsCollector::exportJson(const std::string& filename, const std::vector<s
     out.close();
 }
 
-void StatsCollector::checkAndPrint(const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& tracker_alerts, const std::map<std::string, size_t>& apps) {
+void StatsCollector::checkAndPrint(const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& tracker_alerts, const std::map<std::string, size_t>& apps, size_t connections, size_t dropped) {
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_print_time_).count();
     
@@ -97,8 +99,7 @@ void StatsCollector::checkAndPrint(const std::vector<std::string>& dns, const st
         if (pps > 1000.0) {
             std::string msg = "High traffic detected";
             std::cout << "[ALERT] " << msg << " (" << std::fixed << std::setprecision(1) << pps << " pps)\n";
-            // keep it simple, just add it
-            if (local_alerts_.size() < 10) { // cap it so json doesn't explode
+            if (local_alerts_.size() < 10) {
                 local_alerts_.push_back(msg);
             }
         }
@@ -106,14 +107,14 @@ void StatsCollector::checkAndPrint(const std::vector<std::string>& dns, const st
         std::vector<std::string> combined_alerts = tracker_alerts;
         combined_alerts.insert(combined_alerts.end(), local_alerts_.begin(), local_alerts_.end());
         
-        exportJson("output.json", dns, http, combined_alerts, apps);
+        exportJson("output.json", dns, http, combined_alerts, apps, connections, dropped);
         
         last_print_time_ = now;
         interval_packets_ = 0;
     }
 }
 
-void StatsCollector::printFinal(const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& tracker_alerts, const std::map<std::string, size_t>& apps) {
+void StatsCollector::printFinal(const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& tracker_alerts, const std::map<std::string, size_t>& apps, size_t connections, size_t dropped) {
     auto now = std::chrono::steady_clock::now();
     auto elapsed_total = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time_).count();
     
@@ -128,7 +129,7 @@ void StatsCollector::printFinal(const std::vector<std::string>& dns, const std::
     std::vector<std::string> combined_alerts = tracker_alerts;
     combined_alerts.insert(combined_alerts.end(), local_alerts_.begin(), local_alerts_.end());
     
-    exportJson("output.json", dns, http, combined_alerts, apps);
+    exportJson("output.json", dns, http, combined_alerts, apps, connections, dropped);
 }
 
 } // namespace DPI

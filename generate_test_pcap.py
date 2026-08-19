@@ -153,6 +153,12 @@ def main():
         ('157.240.229.35',  'www.whatsapp.com'),
         ('13.225.103.50',   'www.twitch.tv'),
         ('13.107.42.14',    'teams.microsoft.com'),
+        ('104.18.32.7',     'api.openai.com'),
+        ('151.101.1.140',   'www.reddit.com'),
+        ('18.205.100.1',    'store.steampowered.com'),
+        ('13.107.42.16',    'linkedin.com'),
+        ('151.101.65.140',  'medium.com'),
+        ('54.230.1.10',     'notion.so'),
     ]
 
     for dst_ip, sni in tls_conns:
@@ -171,37 +177,46 @@ def main():
 
     # ── 2. HTTP (port 80) ───────────────────────────────────
     http_conns = [
-        ('93.184.216.34',   'example.com',      '/'),
-        ('185.199.108.153', 'httpbin.org',       '/get'),
-        ('151.101.1.69',    'stackoverflow.com', '/questions'),
-        ('104.20.5.46',     'developers.google.com', '/apis'),
-        ('93.184.216.50',   'test-server.local', '/api/v1/status'),
+        ('93.184.216.34',   'example.com',            '/',                'GET'),
+        ('185.199.108.153', 'httpbin.org',             '/get',             'GET'),
+        ('185.199.108.153', 'httpbin.org',             '/post',            'POST'),
+        ('151.101.1.69',    'stackoverflow.com',      '/questions',       'GET'),
+        ('104.20.5.46',     'developers.google.com',  '/apis',            'GET'),
+        ('93.184.216.50',   'test-server.local',       '/api/v1/status',   'GET'),
+        ('192.168.1.1',     'router.local',           '/login',           'POST'),
+        ('10.0.0.5',        'internal-wiki.local',    '/index.php',       'GET'),
     ]
 
-    for dst_ip, host, path in http_conns:
+    for dst_ip, host, path, method in http_conns:
         sp = random.randint(49152, 65535)
         e = eth(USER_MAC, GW_MAC)
         t = tcp(sp, 80, seq, 0, 0x02); w.write_packet(e + ip4(USER_IP, dst_ip, 6, len(t)) + t); pkt_count+=1
-        hd = http_req(host, path)
+        hd = http_req(host, path, method)
         t = tcp(sp, 80, seq+1, 1, 0x18); w.write_packet(e + ip4(USER_IP, dst_ip, 6, len(t)+len(hd)) + t + hd); pkt_count+=1
         seq += 10000
 
     # ── 3. DNS Queries + Responses (UDP port 53) ────────────
     DNS_DOMAINS = [
-        ('www.google.com',     '142.250.185.206'),
-        ('www.youtube.com',    '142.250.185.110'),
-        ('www.facebook.com',   '157.240.1.35'),
-        ('api.twitter.com',    '104.244.42.65'),
-        ('www.netflix.com',    '23.52.167.61'),
-        ('open.spotify.com',   '35.186.224.47'),
-        ('discord.com',        '104.16.85.20'),
-        ('zoom.us',            '35.186.224.25'),
-        ('www.amazon.com',     '52.94.236.248'),
-        ('www.reddit.com',     '151.101.1.140'),
-        ('www.github.com',     '140.82.114.4'),
-        ('www.tiktok.com',     '99.86.0.100'),
+        ('www.google.com',        '142.250.185.206'),
+        ('www.youtube.com',       '142.250.185.110'),
+        ('www.facebook.com',      '157.240.1.35'),
+        ('api.twitter.com',       '104.244.42.65'),
+        ('www.netflix.com',       '23.52.167.61'),
+        ('open.spotify.com',      '35.186.224.47'),
+        ('discord.com',           '104.16.85.20'),
+        ('zoom.us',               '35.186.224.25'),
+        ('www.amazon.com',        '52.94.236.248'),
+        ('www.reddit.com',        '151.101.1.140'),
+        ('www.github.com',        '140.82.114.4'),
+        ('www.tiktok.com',        '99.86.0.100'),
         ('cdnjs.cloudflare.com', '104.16.132.229'),
-        ('fonts.googleapis.com', '142.250.185.68'),
+        ('fonts.googleapis.com',   '142.250.185.68'),
+        ('api.openai.com',        '104.18.32.7'),
+        ('cdn.discordapp.com',    '162.159.135.232'),
+        ('raw.githubusercontent.com', '185.199.108.133'),
+        ('s3.amazonaws.com',      '52.216.188.10'),
+        ('edge.microsoft.com',    '13.107.42.16'),
+        ('valortant.com',         '192.0.78.24'),
     ]
 
     for domain, answer_ip in DNS_DOMAINS:
@@ -217,7 +232,7 @@ def main():
         w.write_packet(eth(GW_MAC, USER_MAC) + ip4('8.8.8.8', USER_IP, 17, len(u)+len(dr)) + u + dr); pkt_count+=1
 
     # ── 4. NTP (UDP port 123) ───────────────────────────────
-    NTP_SERVERS = ['216.239.35.0', '129.6.15.28', '132.163.97.1']
+    NTP_SERVERS = ['216.239.35.0', '129.6.15.28', '132.163.97.1', '198.60.22.240']
     for ntp_ip in NTP_SERVERS:
         sp = random.randint(49152, 65535)
         e  = eth(USER_MAC, GW_MAC)
@@ -235,6 +250,7 @@ def main():
         'firewall: DROP IN=eth0 SRC=192.168.1.50 DST=1.1.1.1 PROTO=TCP DPT=4444',
         'kernel: nf_conntrack: table full, dropping packet',
         'sshd: Accepted publickey for admin from 192.168.1.200',
+        'auth: Failed password for root from 192.168.1.99 port 54312 ssh2',
     ]
     for msg in SYSLOG_MSGS:
         sp = random.randint(49152, 65535)
@@ -246,7 +262,7 @@ def main():
     # ── 6. VoIP / RTP (UDP) ─────────────────────────────────
     VOIP_DST = '10.10.10.5'
     ssrc = random.randint(0, 0xFFFFFFFF)
-    for i in range(25):  # 25 RTP frames (~500ms of call)
+    for i in range(40):  # 40 RTP frames (~800ms of call)
         sp   = 16384
         dp   = 16386
         rtp  = rtp_packet(i, i*160, ssrc)
@@ -255,7 +271,7 @@ def main():
         w.write_packet(e + ip4(USER_IP, VOIP_DST, 17, len(u)+len(rtp)) + u + rtp); pkt_count+=1
 
     # ── 7. QUIC / UDP port 443 ───────────────────────────────
-    QUIC_SERVERS = ['142.250.185.100', '104.16.0.1', '157.240.1.1']
+    QUIC_SERVERS = ['142.250.185.100', '104.16.0.1', '157.240.1.1', '142.250.185.110']
     for qip in QUIC_SERVERS:
         sp  = random.randint(49152, 65535)
         qp  = quic_initial()
@@ -264,7 +280,7 @@ def main():
         w.write_packet(e + ip4(USER_IP, qip, 17, len(u)+len(qp)) + u + qp); pkt_count+=1
 
     # ── 8. ICMP Echo (ping) ──────────────────────────────────
-    PING_TARGETS = ['8.8.8.8', '1.1.1.1', '142.250.185.206', '157.240.1.35']
+    PING_TARGETS = ['8.8.8.8', '1.1.1.1', '142.250.185.206', '157.240.1.35', '9.9.9.9']
     for target in PING_TARGETS:
         for i in range(4):
             ic = icmp(8, 0, struct.pack('>HH', i, i) + b'DeepPacketDPI!')
@@ -276,22 +292,32 @@ def main():
 
     # ── 9. Suspicious Port Traffic (alerts) ─────────────────
     SUSPICIOUS = [
-        ('192.168.1.50', 4444, 'TCP'),  # Metasploit default
-        ('192.168.1.51', 1337, 'TCP'),  # Elite/leet port
+        ('192.168.1.50', 4444,  'TCP'), # Metasploit default
+        ('192.168.1.51', 1337,  'TCP'), # Elite/leet port
         ('192.168.1.52', 31337, 'TCP'), # Back Orifice
         ('10.0.0.99',    4899,  'TCP'), # Radmin
+        ('192.168.1.77', 6667,  'TCP'), # IRC Botnet C2
     ]
     for s_ip, s_port, proto in SUSPICIOUS:
-        for _ in range(3):
+        for _ in range(4):
             sp = random.randint(49152, 65535)
             e  = eth('00:de:ad:be:ef:01', GW_MAC)
             t  = tcp(sp, s_port, seq, 0, 0x02)
             w.write_packet(e + ip4(s_ip, USER_IP, 6, len(t)) + t); pkt_count+=1
             seq += 1000
 
-    # ── 10. High-volume UDP stream (streaming simulation) ───
+    # ── 10. Simulated Port Scan (Attacker Reconnaissance) ────
+    SCANNER_IP = '10.0.0.66'
+    SCAN_PORTS = [21, 22, 23, 25, 80, 110, 143, 443, 3306, 3389, 5432, 8080]
+    for scan_p in SCAN_PORTS:
+        sp = random.randint(49152, 65535)
+        e  = eth('00:aa:bb:cc:dd:ee', GW_MAC)
+        t  = tcp(sp, scan_p, seq, 0, 0x02)  # SYN packet
+        w.write_packet(e + ip4(SCANNER_IP, USER_IP, 6, len(t)) + t); pkt_count+=1
+
+    # ── 11. High-volume UDP stream (streaming simulation) ───
     STREAM_DST = '1.2.3.4'
-    for i in range(30):
+    for i in range(40):
         sp   = 10000 + (i % 5)
         data = bytes(random.randint(0,255) for _ in range(1316))  # MPEG-TS packet size
         u    = udp(sp, 5004, len(data))
@@ -307,12 +333,14 @@ def main():
     print(f"   DNS           : {len(DNS_DOMAINS) * 2} packets ({len(DNS_DOMAINS)} queries + responses)")
     print(f"   NTP           : {len(NTP_SERVERS) * 2} packets")
     print(f"   Syslog        : {len(SYSLOG_MSGS)} packets")
-    print(f"   VoIP/RTP      : 25 RTP frames")
+    print(f"   VoIP/RTP      : 40 RTP frames")
     print(f"   QUIC (UDP443) : {len(QUIC_SERVERS)} packets")
     print(f"   ICMP/Ping     : {len(PING_TARGETS)*4*2} packets")
-    print(f"   Suspicious    : {len(SUSPICIOUS)*3} packets (ports: {[s[1] for s in SUSPICIOUS]})")
-    print(f"   UDP Stream    : 30 packets")
+    print(f"   Suspicious    : {len(SUSPICIOUS)*4} packets")
+    print(f"   Port Scan     : {len(SCAN_PORTS)} SYN scan packets from {SCANNER_IP}")
+    print(f"   UDP Stream    : 40 packets")
 
 
 if __name__ == '__main__':
     main()
+

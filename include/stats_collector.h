@@ -16,8 +16,8 @@ public:
     StatsCollector();
 
     void update(const PacketAnalyzer::RawPacket& raw, const PacketAnalyzer::ParsedPacket& parsed);
-    void checkAndPrint(const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& tracker_alerts, const std::map<std::string, size_t>& apps);
-    void printFinal(const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& tracker_alerts, const std::map<std::string, size_t>& apps);
+    void checkAndPrint(const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& tracker_alerts, const std::map<std::string, size_t>& apps, size_t connections = 0, size_t dropped = 0);
+    void printFinal(const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& tracker_alerts, const std::map<std::string, size_t>& apps, size_t connections = 0, size_t dropped = 0);
 
 private:
     uint64_t total_packets_ = 0;
@@ -36,7 +36,7 @@ private:
     std::vector<std::string> local_alerts_;
     
     void printMetrics(double pps);
-    void exportJson(const std::string& filename, const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& alerts, const std::map<std::string, size_t>& apps);
+    void exportJson(const std::string& filename, const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& alerts, const std::map<std::string, size_t>& apps, size_t connections = 0, size_t dropped = 0);
 };
 
 } // namespace DPI

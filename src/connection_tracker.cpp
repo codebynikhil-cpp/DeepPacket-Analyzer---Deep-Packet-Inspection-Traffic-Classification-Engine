@@ -90,9 +90,11 @@ PacketAction ConnectionTracker::process(const PacketAnalyzer::ParsedPacket& pkt,
         }
     }
     
-    // Check Rules dynamically
-    if (rule_manager_.isAppBlocked(conn->app_type) || 
-        rule_manager_.isDomainBlocked(conn->sni)) {
+    // Check Rules dynamically (IP, App, Domain, Port)
+    if (rule_manager_.shouldBlock(pkt.src_ip_num, pkt.dest_port, conn->app_type, conn->sni).has_value() ||
+        rule_manager_.isPortBlocked(pkt.src_port) ||
+        rule_manager_.isPortBlocked(pkt.dest_port) ||
+        rule_manager_.isIPBlocked(pkt.dest_ip_num)) {
         conn->action = PacketAction::DROP;
     }
     

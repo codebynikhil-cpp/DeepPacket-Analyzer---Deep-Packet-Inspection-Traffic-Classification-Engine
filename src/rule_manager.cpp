@@ -284,33 +284,40 @@ bool RuleManager::loadRules(const std::string& filename) {
     }
     
     std::string line;
-    std::string current_section;
+    std::string current_key = "";
     
     while (std::getline(file, line)) {
-        // Skip empty lines
-        if (line.empty()) continue;
+        if (line.find("\"blocked_ips\"") != std::string::npos) current_key = "ips";
+        else if (line.find("\"blocked_domains\"") != std::string::npos) current_key = "domains";
+        else if (line.find("\"blocked_apps\"") != std::string::npos) current_key = "apps";
+        else if (line.find("\"blocked_ports\"") != std::string::npos) current_key = "ports";
         
-        // Check for section headers
-        if (line[0] == '[') {
-            current_section = line;
-            continue;
-        }
-        
-        // Process based on section
-        if (current_section == "[BLOCKED_IPS]") {
-            blockIP(line);
-        } else if (current_section == "[BLOCKED_APPS]") {
-            // Convert string back to AppType
-            for (int i = 0; i < static_cast<int>(AppType::APP_COUNT); i++) {
-                if (appTypeToString(static_cast<AppType>(i)) == line) {
-                    blockApp(static_cast<AppType>(i));
-                    break;
+        size_t first_q = line.find('"');
+        if (first_q != std::string::npos) {
+            size_t second_q = line.find('"', first_q + 1);
+            if (second_q != std::string::npos) {
+                std::string val = line.substr(first_q + 1, second_q - first_q - 1);
+                if (val != "blocked_ips" && val != "blocked_domains" && val != "blocked_apps" && val != "blocked_ports") {
+                    if (current_key == "ips") blockIP(val);
+                    else if (current_key == "domains") blockDomain(val);
+                    else if (current_key == "apps") {
+                        for (int i = 0; i < static_cast<int>(AppType::APP_COUNT); i++) {
+                            if (appTypeToString(static_cast<AppType>(i)) == val) {
+                                blockApp(static_cast<AppType>(i));
+                                break;
+                            }
+                        }
+                    }
                 }
             }
-        } else if (current_section == "[BLOCKED_DOMAINS]") {
-            blockDomain(line);
-        } else if (current_section == "[BLOCKED_PORTS]") {
-            blockPort(static_cast<uint16_t>(std::stoi(line)));
+        } else if (current_key == "ports") {
+            std::string digits = "";
+            for (char c : line) {
+                if (std::isdigit(c)) digits += c;
+            }
+            if (!digits.empty()) {
+                blockPort(static_cast<uint16_t>(std::stoi(digits)));
+            }
         }
     }
     

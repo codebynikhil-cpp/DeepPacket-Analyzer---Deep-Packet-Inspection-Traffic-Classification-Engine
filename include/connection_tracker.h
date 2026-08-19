@@ -28,6 +28,9 @@ public:
     const std::vector<std::string>& getHttpRequests() const { return http_requests_; }
     const std::vector<std::string>& getAlerts() const { return alerts_; }
     std::map<std::string, size_t> getApplicationStats() const;
+    size_t getConnectionsCount() const { return connections_.size(); }
+    size_t getDroppedCount() const { return dropped_count_; }
+
 
 private:
     std::unordered_map<FiveTuple, Connection, FiveTupleHash> connections_;

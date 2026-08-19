@@ -47,10 +47,8 @@ int main(int argc, char* argv[]) {
     FastPath fast_path;
     DPIEngine dpi_engine;
     ConnectionTracker connection_tracker;
+    connection_tracker.getRuleManager().loadRules("rules.json");
     StatsCollector stats;
-
-    // Optional: add some blocks to verify RuleManager logic
-    // connection_tracker.getRuleManager().blockApp(AppType::YOUTUBE);
 
     std::cout << "[Pipeline] Starting inspection pipeline...\n";
 
@@ -66,7 +64,7 @@ int main(int argc, char* argv[]) {
         
         // Update stats
         stats.update(raw_pkt, parsed_pkt);
-        stats.checkAndPrint(connection_tracker.getDnsQueries(), connection_tracker.getHttpRequests(), connection_tracker.getAlerts(), connection_tracker.getApplicationStats());
+        stats.checkAndPrint(connection_tracker.getDnsQueries(), connection_tracker.getHttpRequests(), connection_tracker.getAlerts(), connection_tracker.getApplicationStats(), connection_tracker.getConnectionsCount(), connection_tracker.getDroppedCount());
         
         // 2. Fast Path Routing & DPI Inspection
         std::optional<AppClassification> classification = std::nullopt;
@@ -88,7 +86,7 @@ int main(int argc, char* argv[]) {
     output.close();
     
     std::cout << "[Pipeline] Processed " << packet_count << " packets.\n";
-    stats.printFinal(connection_tracker.getDnsQueries(), connection_tracker.getHttpRequests(), connection_tracker.getAlerts(), connection_tracker.getApplicationStats());
+    stats.printFinal(connection_tracker.getDnsQueries(), connection_tracker.getHttpRequests(), connection_tracker.getAlerts(), connection_tracker.getApplicationStats(), connection_tracker.getConnectionsCount(), connection_tracker.getDroppedCount());
     connection_tracker.generateReport();
     std::cout << "[Pipeline] Analysis complete.\n";
 
