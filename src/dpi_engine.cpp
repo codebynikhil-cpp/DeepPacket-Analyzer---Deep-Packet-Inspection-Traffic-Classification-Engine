@@ -110,8 +110,8 @@ AppClassification DPIEngine::inspect(const PacketAnalyzer::ParsedPacket& pkt) {
                 return result;
             }
             
-            // All other UDP 443 video streams default to YouTube / QUIC
-            result.app = AppType::YOUTUBE;
+            // QUIC with unknown SNI — classify as generic HTTPS (not blindly YouTube)
+            result.app = AppType::HTTPS;
             return result;
         }
     }

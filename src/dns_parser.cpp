@@ -49,4 +49,80 @@ std::optional<std::string> DNSParser::extractQuery(const uint8_t* payload, size_
     return domain.empty() ? std::nullopt : std::optional<std::string>(domain);
 }
 
+// Skip over a DNS name (handles compression pointers)
+// Returns new offset, or 0 on error
+size_t DNSParser::skipName(const uint8_t* payload, size_t length, size_t offset) {
+    while (offset < length) {
+        uint8_t len = payload[offset];
+        if (len == 0) {
+            return offset + 1; // end of name
+        }
+        if ((len & 0xC0) == 0xC0) {
+            // Compression pointer: 2 bytes total
+            return offset + 2;
+        }
+        offset += 1 + len;
+    }
+    return 0; // error
+}
+
+// Parse DNS response and extract all A-record (IPv4) answers
+std::vector<DnsAnswer> DNSParser::extractAnswers(const uint8_t* payload, size_t length) {
+    std::vector<DnsAnswer> results;
+    if (length < 12) return results;
+
+    // Check QR bit must be 1 (response)
+    if (!(payload[2] & 0x80)) return results;
+
+    uint16_t qdcount = (static_cast<uint16_t>(payload[4]) << 8) | payload[5];
+    uint16_t ancount = (static_cast<uint16_t>(payload[6]) << 8) | payload[7];
+    if (ancount == 0) return results;
+
+    // Extract the question's domain name (used to label answers)
+    size_t offset = 12;
+    std::string qname;
+    while (offset < length) {
+        uint8_t llen = payload[offset];
+        if (llen == 0) { offset++; break; }
+        if ((llen & 0xC0) == 0xC0) { offset += 2; break; }
+        if (llen > 63 || offset + 1 + llen > length) break;
+        if (!qname.empty()) qname += '.';
+        qname += std::string(reinterpret_cast<const char*>(payload + offset + 1), llen);
+        offset += 1 + llen;
+    }
+    // Skip QTYPE + QCLASS (4 bytes)
+    offset += 4;
+
+    // Parse answer records
+    for (int i = 0; i < ancount && offset < length; i++) {
+        // Skip the NAME field in each RR (can be a pointer)
+        size_t new_offset = skipName(payload, length, offset);
+        if (new_offset == 0 || new_offset + 10 > length) break;
+        offset = new_offset;
+
+        uint16_t rtype  = (static_cast<uint16_t>(payload[offset])   << 8) | payload[offset+1];
+        // uint16_t rclass = (static_cast<uint16_t>(payload[offset+2]) << 8) | payload[offset+3];
+        // uint32_t ttl    = ...
+        uint16_t rdlen  = (static_cast<uint16_t>(payload[offset+8]) << 8) | payload[offset+9];
+        offset += 10;
+
+        if (offset + rdlen > length) break;
+
+        // Type A = 1 (IPv4 address)
+        if (rtype == 1 && rdlen == 4) {
+            uint32_t ip = (static_cast<uint32_t>(payload[offset])   << 24) |
+                          (static_cast<uint32_t>(payload[offset+1]) << 16) |
+                          (static_cast<uint32_t>(payload[offset+2]) << 8)  |
+                           static_cast<uint32_t>(payload[offset+3]);
+            if (!qname.empty()) {
+                results.push_back({qname, ip});
+            }
+        }
+        offset += rdlen;
+    }
+
+    return results;
+}
+
 } // namespace DPI
+

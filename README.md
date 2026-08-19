@@ -221,11 +221,12 @@ packet_analyzer/
 │   ├── pcap_reader.h          # PCAP file reading
 │   ├── packet_parser.h        # Network protocol parsing
 │   ├── sni_extractor.h        # TLS/HTTP inspection
+│   ├── dns_parser.h           # DNS packet parsing and query/answer extraction
 │   ├── types.h                # Data structures (FiveTuple, AppType, etc.)
-│   ├── rule_manager.h         # Blocking rules (multi-threaded version)
-│   ├── connection_tracker.h   # Flow tracking (multi-threaded version)
-│   ├── load_balancer.h        # LB thread (multi-threaded version)
-│   ├── fast_path.h            # FP thread (multi-threaded version)
+│   ├── rule_manager.h         # Blocking rules
+│   ├── connection_tracker.h   # Flow tracking and IP-to-domain learning mapping
+│   ├── load_balancer.h        # Load balancer thread
+│   ├── fast_path.h            # Fast Path thread
 │   ├── thread_safe_queue.h    # Thread-safe queue
 │   └── dpi_engine.h           # Main orchestrator
 │
@@ -233,9 +234,9 @@ packet_analyzer/
 │   ├── pcap_reader.cpp        # PCAP file handling
 │   ├── packet_parser.cpp      # Protocol parsing
 │   ├── sni_extractor.cpp      # SNI/Host extraction
+│   ├── dns_parser.cpp         # DNS parsing & response learning logic
 │   ├── types.cpp              # Helper functions
-│   ├── main_working.cpp       # ★ SIMPLE VERSION ★
-│   ├── dpi_mt.cpp             # ★ MULTI-THREADED VERSION ★
+│   ├── main.cpp               # Main entry point for Live/PCAP engine
 │   └── [other files]          # Supporting code
 │
 ├── generate_test_pcap.py      # Creates test data
@@ -870,6 +871,14 @@ std::optional<std::string> SNIExtractor::extract(
     return std::nullopt;  // SNI not found
 }
 ```
+
+### DNS Response Parsing & Dynamic IP-to-Domain Mapping
+
+In addition to extracting Server Name Indication (SNI) from TLS/HTTPS client handshakes, the analyzer inspects DNS traffic. When it encounters DNS response packets (over UDP port 53), it extracts the resolved A-record IP addresses and maps them dynamically to their respective query domains.
+
+This mapping serves two crucial purposes:
+1. **Fallback Classification:** If a TCP connection starts (e.g., TCP SYN handshake) but has not yet transmitted the TLS handshake, the connection tracker uses the dynamic IP map to resolve its destination IP to a known app/domain.
+2. **Improved Metrics and Reporting:** The engine can accurately attribute generic TCP traffic on port 443 to correct application labels (e.g., Google, YouTube) even before seeing a Client Hello packet.
 
 ---
 

@@ -1,4 +1,6 @@
 #include "connection_tracker.h"
+#include "dns_parser.h"
+#include "types.h"
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
@@ -15,6 +17,12 @@ std::map<std::string, size_t> ConnectionTracker::getApplicationStats() const {
 }
 
 ConnectionTracker::ConnectionTracker() {
+}
+
+void ConnectionTracker::learnDnsMapping(const std::string& domain, uint32_t ip) {
+    if (ip == 0 || domain.empty()) return;
+    ip_to_domain_[ip] = domain;
+    ip_to_app_[ip]    = sniToAppType(domain);
 }
 
 Connection* ConnectionTracker::getOrCreateConnection(const FiveTuple& tuple) {
@@ -68,13 +76,31 @@ PacketAction ConnectionTracker::process(const PacketAnalyzer::ParsedPacket& pkt,
         conn->sni = classification->sni_or_host;
         conn->state = ConnectionState::CLASSIFIED;
         
-        // Output DNS in real-time as requested
-        if (conn->app_type == AppType::DNS && !conn->sni.empty()) {
-            std::cout << "[DNS] " << conn->sni << "\n";
-            dns_queries_.push_back(conn->sni);
+        // Output DNS queries in real-time; also parse DNS *responses* to learn IP mappings
+        if ((pkt.src_port == 53 || pkt.dest_port == 53) && pkt.payload_data) {
+            // DNS query → log domain
+            if (conn->app_type == AppType::DNS && !conn->sni.empty()) {
+                std::cout << "[DNS] " << conn->sni << "\n";
+                dns_queries_.push_back(conn->sni);
+            }
+            // DNS response → extract A-record answers to learn IP→domain
+            auto answers = DNSParser::extractAnswers(pkt.payload_data, pkt.payload_length);
+            for (const auto& ans : answers) {
+                learnDnsMapping(ans.domain, ans.ip);
+                // Also log query domain if not yet seen
+                if (!ans.domain.empty()) {
+                    bool already = false;
+                    for (const auto& q : dns_queries_) {
+                        if (q == ans.domain) { already = true; break; }
+                    }
+                    if (!already) {
+                        dns_queries_.push_back(ans.domain);
+                    }
+                }
+            }
         }
         
-        // Output HTTP in real-time as requested
+        // Output HTTP in real-time
         if (!classification->http_method.empty()) {
             std::string req = classification->http_method + " " + classification->sni_or_host + classification->http_path;
             std::cout << "[HTTP] " << req << "\n";
@@ -84,13 +110,27 @@ PacketAction ConnectionTracker::process(const PacketAnalyzer::ParsedPacket& pkt,
     // Fallback: classify by well-known port if still UNKNOWN
     // Covers payload-less TCP packets (SYN/ACK/FIN) on known ports
     else if (conn->app_type == AppType::UNKNOWN) {
-        uint16_t port = std::min(pkt.src_port, pkt.dest_port); // use the well-known side
-        if (pkt.dest_port == 443 || pkt.src_port == 443) {
-            conn->app_type = AppType::HTTPS;
-        } else if (pkt.dest_port == 80 || pkt.src_port == 80) {
-            conn->app_type = AppType::HTTP;
-        } else if (pkt.dest_port == 53 || pkt.src_port == 53) {
-            conn->app_type = AppType::DNS;
+        // First try: look up destination IP in our DNS-learned map
+        auto it = ip_to_app_.find(tuple.dst_ip);
+        if (it != ip_to_app_.end() && it->second != AppType::UNKNOWN && it->second != AppType::HTTPS) {
+            conn->app_type = it->second;
+            auto dit = ip_to_domain_.find(tuple.dst_ip);
+            if (dit != ip_to_domain_.end()) conn->sni = dit->second;
+            conn->state = ConnectionState::CLASSIFIED;
+        } else {
+            auto rit = ip_to_app_.find(tuple.src_ip);
+            if (rit != ip_to_app_.end() && rit->second != AppType::UNKNOWN && rit->second != AppType::HTTPS) {
+                conn->app_type = rit->second;
+                auto drit = ip_to_domain_.find(tuple.src_ip);
+                if (drit != ip_to_domain_.end()) conn->sni = drit->second;
+                conn->state = ConnectionState::CLASSIFIED;
+            } else if (pkt.dest_port == 443 || pkt.src_port == 443) {
+                conn->app_type = AppType::HTTPS;
+            } else if (pkt.dest_port == 80 || pkt.src_port == 80) {
+                conn->app_type = AppType::HTTP;
+            } else if (pkt.dest_port == 53 || pkt.src_port == 53) {
+                conn->app_type = AppType::DNS;
+            }
         }
     }
     

@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 #include <map>
+#include <string>
 
 namespace DPI {
 
@@ -39,10 +40,16 @@ private:
     std::vector<std::string> alerts_;
     RuleManager rule_manager_;
     
+    // IP -> domain/app cache built from DNS responses
+    // Key: numeric IP (uint32_t for IPv4, or hash for IPv6)
+    std::unordered_map<uint32_t, std::string> ip_to_domain_;
+    std::unordered_map<uint32_t, AppType>  ip_to_app_;
+    
     size_t total_seen_ = 0;
     size_t dropped_count_ = 0;
     
     Connection* getOrCreateConnection(const FiveTuple& tuple);
+    void learnDnsMapping(const std::string& domain, uint32_t ip);
 };
 
 } // namespace DPI
