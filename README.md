@@ -1,7 +1,102 @@
-# DPI Engine - Deep Packet Inspection System
+# DeepPacket Analyzer — Real-Time Packet Capture & Deep Packet Inspection System
 
+DeepPacket Analyzer is a high-performance C++17 Deep Packet Inspection (DPI) and traffic classification engine. It supports both **Real-Time Live Network Interface Capture** and **Offline PCAP Analysis**, paired with an interactive Web Dashboard and REST API.
 
-This document explains **everything** about this project - from basic networking concepts to the complete code architecture. After reading this, you should understand exactly how packets flow through the system without needing to read the code.
+---
+
+## 🏛 Architecture
+
+```text
+PCAP FILE ────────┐
+                  │
+                  ▼
+             Packet Source (PcapFileSource / LiveCaptureSource)
+                  │
+LIVE INTERFACE ───┘
+                  │
+                  ▼
+             Packet Parser (Ethernet / IPv4 / IPv6 / TCP / UDP / ICMP)
+                  │
+                  ▼
+          Connection Tracker (5-Tuple Flow Management & State Tracking)
+                  │
+                  ▼
+             Fast Path (Heuristic & Cached Decision Acceleration)
+                  │
+                  ▼
+              DPI Engine
+                  │
+          ┌───────┼────────┐
+          ▼       ▼        ▼
+         DNS     HTTP    TLS/SNI
+          └───────┼────────┘
+                  ▼
+          Rule / Firewall (IP, Domain, Application, Port Rules)
+                  │
+                  ▼
+          Statistics Engine (In-Memory Metrics & Periodic JSON Snapshots)
+                  │
+                  ▼
+             Node.js API (REST Endpoints & Rule Management)
+                  │
+                  ▼
+          Web Dashboard (Live Throughput, Top Apps, Protocols, Security Alerts)
+```
+
+---
+
+## 🚀 Quick Start & CLI Modes
+
+### 1. List Available Network Interfaces
+```bash
+./PacketInspector --list-interfaces
+```
+
+### 2. Real-Time Live Capture Mode
+Capture live packets continuously from a network interface (by name or index number):
+```bash
+# Windows (Requires Npcap)
+./PacketInspector --interface 1
+
+# Linux / macOS (Requires elevated permissions or capabilities)
+sudo ./PacketInspector --interface eth0
+```
+
+### 3. Offline PCAP Mode
+Analyze pre-recorded `.pcap` capture files:
+```bash
+./PacketInspector --pcap test_dpi.pcap filtered_output.pcap
+# Or legacy syntax:
+./PacketInspector test_dpi.pcap filtered_output.pcap
+```
+
+### 4. Launch Web Dashboard
+Start the Node.js backend server to view the live dashboard:
+```bash
+npm install
+npm start
+```
+Access the dashboard at **`http://localhost:3000`**.
+
+---
+
+## 🔒 Permissions & Capabilities
+
+### Linux
+Packet capture requires raw socket access (`CAP_NET_RAW` / `CAP_NET_ADMIN`):
+- **Option A (Recommended)**: Grant capabilities to the binary without running full root:
+  ```bash
+  sudo setcap cap_net_raw,cap_net_admin=eip ./PacketInspector
+  ./PacketInspector --interface eth0
+  ```
+- **Option B**: Run with `sudo`:
+  ```bash
+  sudo ./PacketInspector --interface eth0
+  ```
+
+### Windows
+- Install [Npcap](https://npcap.com/#download) with *"Install Npcap in WinPcap API-compatible Mode"*.
+- Run command prompt / terminal as Administrator when performing live packet capture.
 
 ---
 
@@ -18,31 +113,6 @@ This document explains **everything** about this project - from basic networking
 9. [How Blocking Works](#9-how-blocking-works)
 10. [Building and Running](#10-building-and-running)
 11. [Understanding the Output](#11-understanding-the-output)
-
----
-
-## 1. What is DPI?
-
-**Deep Packet Inspection (DPI)** is a technology used to examine the contents of network packets as they pass through a checkpoint. Unlike simple firewalls that only look at packet headers (source/destination IP), DPI looks *inside* the packet payload.
-
-### Real-World Uses:
-- **ISPs**: Throttle or block certain applications (e.g., BitTorrent)
-- **Enterprises**: Block social media on office networks
-- **Parental Controls**: Block inappropriate websites
-- **Security**: Detect malware or intrusion attempts
-
-### What Our DPI Engine Does:
-```
-User Traffic (PCAP) → [DPI Engine] → Filtered Traffic (PCAP)
-                           ↓
-                    - Identifies apps (YouTube, Facebook, etc.)
-                    - Blocks based on rules
-                    - Generates reports
-```
-
----
-
-## 2. Networking Background
 
 ### The Network Stack (Layers)
 

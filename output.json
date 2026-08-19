@@ -1,11 +1,15 @@
 {
-  "packets": 330,
-  "bytes": 81397,
-  "connections": 166,
-  "dropped": 26,
-  "protocols": { "TCP": 152, "UDP": 138 },
-  "applications": {"Amazon": 1, "Apple": 1, "Cloudflare": 1, "DNS": 20, "Discord": 1, "Facebook": 1, "GitHub": 1, "Google": 3, "HTTP": 1, "HTTPS": 40, "Instagram": 1, "Spotify": 1, "Telegram": 1, "TikTok": 1, "Twitter/X": 5, "Unknown": 84, "WhatsApp": 1, "YouTube": 1, "Zoom": 1},
-  "dns": ["www.google.com", "www.youtube.com", "www.facebook.com", "api.twitter.com", "www.netflix.com", "open.spotify.com", "discord.com", "zoom.us", "www.amazon.com", "www.reddit.com", "www.github.com", "www.tiktok.com", "cdnjs.cloudflare.com", "fonts.googleapis.com", "api.openai.com", "cdn.discordapp.com", "raw.githubusercontent.com", "s3.amazonaws.com", "edge.microsoft.com", "valortant.com"],
-  "http": ["GET example.com/", "GET httpbin.org/get", "POST httpbin.org/post", "GET stackoverflow.com/questions", "GET developers.google.com/apis", "GET test-server.local/api/v1/status", "POST router.local/login", "GET internal-wiki.local/index.php"],
-  "alerts": ["Suspicious port 4444", "Suspicious port 4444", "Suspicious port 4444", "Suspicious port 4444", "Suspicious port 1337", "Suspicious port 1337", "Suspicious port 1337", "Suspicious port 1337"]
+  "packets": 182890,
+  "bytes": 172488332,
+  "connections": 319,
+  "dropped": 0,
+  "capture_drops": 0,
+  "processing_drops": 0,
+  "mode": "live",
+  "source_name": "\\Device\\NPF_{4320F550-7931-4863-BCAC-912FF4BEF932}",
+  "protocols": { "TCP": 168913, "UDP": 13748, "ICMP": 0 },
+  "applications": {"Amazon": 3, "Google": 7, "HTTP": 1, "HTTPS": 105, "Microsoft": 2, "Reddit": 2, "Twitter/X": 8, "Unknown": 43, "Wikipedia": 1, "YouTube": 147},
+  "dns": [],
+  "http": ["POST 91.108.23.100/api"],
+  "alerts": ["High traffic detected", "High traffic detected", "High traffic detected", "High traffic detected", "High traffic detected", "High traffic detected", "High traffic detected", "High traffic detected", "High traffic detected", "High traffic detected"]
 }

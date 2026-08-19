@@ -276,8 +276,17 @@ async function deleteRule(type, value) {
 function updateDashboard(data) {
     const total = data.packets || 0;
     const bytes = data.bytes   || 0;
-    const tcp   = data.protocols?.TCP  || 0;
-    const udp   = data.protocols?.UDP  || 0;
+    const mode  = data.mode    || 'offline';
+    const src   = data.source_name || 'pcap';
+
+    const modeText = document.getElementById('modeText');
+    if (modeText) {
+        if (mode === 'live') {
+            modeText.innerHTML = `<span style="color:#10b981">LIVE ●</span> ${src}`;
+        } else {
+            modeText.innerHTML = `<span style="color:#6366f1">OFFLINE 📄</span> ${src}`;
+        }
+    }
 
     document.getElementById('kpiPackets').textContent = total.toLocaleString();
     document.getElementById('kpiBytes').textContent = bytes >= 1048576
@@ -285,8 +294,16 @@ function updateDashboard(data) {
         : bytes >= 1024 ? (bytes/1024).toFixed(2)+' KB' : bytes+' B';
     document.getElementById('kpiConns').textContent   = (data.connections ?? '—').toLocaleString();
     document.getElementById('kpiDropped').textContent = (data.dropped    ?? 0).toLocaleString();
+    
+    if (document.getElementById('kpiCapDrops')) {
+        document.getElementById('kpiCapDrops').textContent = (data.capture_drops ?? 0).toLocaleString();
+    }
+    if (document.getElementById('kpiProcDrops')) {
+        document.getElementById('kpiProcDrops').textContent = (data.processing_drops ?? 0).toLocaleString();
+    }
+
     document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
-    document.getElementById('statusText').textContent = 'Live · ' + new Date().toLocaleTimeString();
+    document.getElementById('statusText').textContent = (mode === 'live' ? 'Live Capture · ' : 'Offline PCAP · ') + new Date().toLocaleTimeString();
 
     renderProto(data.protocols, total);
     updateLineChart(total);
@@ -309,5 +326,5 @@ async function fetchData() {
 loadRules();
 initLineChart();
 fetchData();
-setInterval(fetchData, 1000);
+setInterval(fetchData, 500);  // 500ms fast polling for live streaming metrics
 setInterval(loadRules, 5000);  // refresh rules every 5s

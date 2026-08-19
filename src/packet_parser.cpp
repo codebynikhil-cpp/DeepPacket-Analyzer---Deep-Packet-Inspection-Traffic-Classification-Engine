@@ -29,9 +29,24 @@ bool PacketParser::parse(const RawPacket& raw, ParsedPacket& parsed) {
         return false;
     }
     
-    // Parse IP layer if it's an IPv4 packet
+    // Parse IP layer if it's an IPv4 or IPv6 packet
     if (parsed.ether_type == EtherType::IPv4) {
         if (!parseIPv4(data, len, parsed, offset)) {
+            return false;
+        }
+        
+        // Parse transport layer based on protocol
+        if (parsed.protocol == Protocol::TCP) {
+            if (!parseTCP(data, len, parsed, offset)) {
+                return false;
+            }
+        } else if (parsed.protocol == Protocol::UDP) {
+            if (!parseUDP(data, len, parsed, offset)) {
+                return false;
+            }
+        }
+    } else if (parsed.ether_type == EtherType::IPv6) {
+        if (!parseIPv6(data, len, parsed, offset)) {
             return false;
         }
         
@@ -125,6 +140,32 @@ bool PacketParser::parseIPv4(const uint8_t* data, size_t len,
     parsed.has_ip = true;
     offset += ip_header_len;
     
+    return true;
+}
+
+bool PacketParser::parseIPv6(const uint8_t* data, size_t len, 
+                              ParsedPacket& parsed, size_t& offset) {
+    constexpr size_t IPV6_HEADER_LEN = 40;
+    if (len < offset + IPV6_HEADER_LEN) {
+        return false;
+    }
+    
+    const uint8_t* ip_data = data + offset;
+    parsed.ip_version = 6;
+    parsed.ttl = ip_data[7];       // Hop Limit
+    parsed.protocol = ip_data[6];  // Next Header (TCP=6, UDP=17, etc.)
+    parsed.src_ip = "IPv6";
+    parsed.dest_ip = "IPv6";
+    
+    uint32_t src32 = 0, dst32 = 0;
+    std::memcpy(&src32, ip_data + 20, 4); // last 4 bytes of IPv6 src
+    std::memcpy(&dst32, ip_data + 36, 4); // last 4 bytes of IPv6 dst
+    parsed.src_ip_num = src32;
+    parsed.dest_ip_num = dst32;
+    
+    parsed.has_ip = true;
+    
+    offset += IPV6_HEADER_LEN;
     return true;
 }
 

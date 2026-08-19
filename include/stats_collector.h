@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <mutex>
 
 namespace DPI {
 
@@ -15,11 +16,39 @@ class StatsCollector {
 public:
     StatsCollector();
 
+    void setMode(const std::string& mode, const std::string& source_name) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        mode_ = mode;
+        source_name_ = source_name;
+    }
+
     void update(const PacketAnalyzer::RawPacket& raw, const PacketAnalyzer::ParsedPacket& parsed);
-    void checkAndPrint(const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& tracker_alerts, const std::map<std::string, size_t>& apps, size_t connections = 0, size_t dropped = 0);
-    void printFinal(const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& tracker_alerts, const std::map<std::string, size_t>& apps, size_t connections = 0, size_t dropped = 0);
+    
+    void checkAndPrint(const std::vector<std::string>& dns, 
+                      const std::vector<std::string>& http, 
+                      const std::vector<std::string>& tracker_alerts, 
+                      const std::map<std::string, size_t>& apps, 
+                      size_t connections = 0, 
+                      size_t dropped = 0,
+                      uint64_t capture_drops = 0,
+                      uint64_t processing_drops = 0,
+                      uint64_t interval_ms = 500);
+
+    void printFinal(const std::vector<std::string>& dns, 
+                    const std::vector<std::string>& http, 
+                    const std::vector<std::string>& tracker_alerts, 
+                    const std::map<std::string, size_t>& apps, 
+                    size_t connections = 0, 
+                    size_t dropped = 0,
+                    uint64_t capture_drops = 0,
+                    uint64_t processing_drops = 0);
 
 private:
+    mutable std::mutex mutex_;
+
+    std::string mode_ = "offline";
+    std::string source_name_ = "pcap";
+
     uint64_t total_packets_ = 0;
     uint64_t total_bytes_ = 0;
     
@@ -36,7 +65,15 @@ private:
     std::vector<std::string> local_alerts_;
     
     void printMetrics(double pps);
-    void exportJson(const std::string& filename, const std::vector<std::string>& dns, const std::vector<std::string>& http, const std::vector<std::string>& alerts, const std::map<std::string, size_t>& apps, size_t connections = 0, size_t dropped = 0);
+    void exportJson(const std::string& filename, 
+                    const std::vector<std::string>& dns, 
+                    const std::vector<std::string>& http, 
+                    const std::vector<std::string>& alerts, 
+                    const std::map<std::string, size_t>& apps, 
+                    size_t connections, 
+                    size_t dropped,
+                    uint64_t capture_drops,
+                    uint64_t processing_drops);
 };
 
 } // namespace DPI

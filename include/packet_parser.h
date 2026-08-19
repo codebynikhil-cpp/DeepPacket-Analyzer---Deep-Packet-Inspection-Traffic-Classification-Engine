@@ -104,6 +104,7 @@ public:
 private:
     static bool parseEthernet(const uint8_t* data, size_t len, ParsedPacket& parsed, size_t& offset);
     static bool parseIPv4(const uint8_t* data, size_t len, ParsedPacket& parsed, size_t& offset);
+    static bool parseIPv6(const uint8_t* data, size_t len, ParsedPacket& parsed, size_t& offset);
     static bool parseTCP(const uint8_t* data, size_t len, ParsedPacket& parsed, size_t& offset);
     static bool parseUDP(const uint8_t* data, size_t len, ParsedPacket& parsed, size_t& offset);
 };

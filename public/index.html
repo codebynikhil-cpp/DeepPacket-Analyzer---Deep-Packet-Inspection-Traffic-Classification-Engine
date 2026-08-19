@@ -41,6 +41,7 @@
                 <p class="page-sub">Real-time deep packet inspection · C++ Engine</p>
             </div>
             <div class="topbar-right">
+                <div class="chip" id="modeBadge">Mode: <span id="modeText" style="font-weight:700">Offline</span></div>
                 <div class="chip">Last update: <span id="lastUpdate">—</span></div>
             </div>
         </header>
@@ -51,7 +52,7 @@
                 <div class="kpi">
                     <div class="kpi-label">Total Packets</div>
                     <div class="kpi-val" id="kpiPackets">—</div>
-                    <div class="kpi-sub">from PCAP capture</div>
+                    <div class="kpi-sub" id="kpiPacketsSub">from PCAP capture</div>
                 </div>
                 <div class="kpi">
                     <div class="kpi-label">Traffic Volume</div>
@@ -67,6 +68,16 @@
                     <div class="kpi-label">Packets Dropped</div>
                     <div class="kpi-val" id="kpiDropped">—</div>
                     <div class="kpi-sub">by firewall rules</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Capture Drops</div>
+                    <div class="kpi-val" id="kpiCapDrops">0</div>
+                    <div class="kpi-sub">kernel / pcap drops</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Processing Drops</div>
+                    <div class="kpi-val" id="kpiProcDrops">0</div>
+                    <div class="kpi-sub">queue full drops</div>
                 </div>
                 <div class="kpi" id="kpiAlertCard">
                     <div class="kpi-label">Security Alerts</div>

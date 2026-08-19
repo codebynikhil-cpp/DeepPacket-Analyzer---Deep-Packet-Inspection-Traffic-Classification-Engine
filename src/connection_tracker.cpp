@@ -22,6 +22,10 @@ Connection* ConnectionTracker::getOrCreateConnection(const FiveTuple& tuple) {
     if (it != connections_.end()) {
         return &it->second;
     }
+    auto rev_it = connections_.find(tuple.reverse());
+    if (rev_it != connections_.end()) {
+        return &rev_it->second;
+    }
     
     Connection conn;
     conn.tuple = tuple;

@@ -52,7 +52,14 @@ std::string appTypeToString(AppType type) {
         case AppType::DISCORD:    return "Discord";
         case AppType::GITHUB:     return "GitHub";
         case AppType::CLOUDFLARE: return "Cloudflare";
-        default:                  return "Unknown";
+        case AppType::WIKIPEDIA:     return "Wikipedia";
+        case AppType::REDDIT:        return "Reddit";
+        case AppType::OPENAI:        return "ChatGPT/OpenAI";
+        case AppType::NOTION:        return "Notion";
+        case AppType::LEETCODE:      return "LeetCode";
+        case AppType::LINKEDIN:      return "LinkedIn";
+        case AppType::STACKOVERFLOW: return "StackOverflow";
+        default:                     return "Unknown";
     }
 }
 
@@ -66,21 +73,22 @@ AppType sniToAppType(const std::string& sni) {
                    [](unsigned char c) { return std::tolower(c); });
     
     // Check for known patterns
-    // Google (including YouTube, which is owned by Google)
+    // YouTube (Checked before general Google to capture googlevideo/yt3.ggpht)
+    if (lower_sni.find("youtube") != std::string::npos ||
+        lower_sni.find("googlevideo") != std::string::npos ||
+        lower_sni.find("ytimg") != std::string::npos ||
+        lower_sni.find("youtu.be") != std::string::npos ||
+        lower_sni.find("yt3.ggpht") != std::string::npos) {
+        return AppType::YOUTUBE;
+    }
+    
+    // Google
     if (lower_sni.find("google") != std::string::npos ||
         lower_sni.find("gstatic") != std::string::npos ||
         lower_sni.find("googleapis") != std::string::npos ||
         lower_sni.find("ggpht") != std::string::npos ||
         lower_sni.find("gvt1") != std::string::npos) {
         return AppType::GOOGLE;
-    }
-    
-    // YouTube
-    if (lower_sni.find("youtube") != std::string::npos ||
-        lower_sni.find("ytimg") != std::string::npos ||
-        lower_sni.find("youtu.be") != std::string::npos ||
-        lower_sni.find("yt3.ggpht") != std::string::npos) {
-        return AppType::YOUTUBE;
     }
     
     // Facebook/Meta
@@ -187,6 +195,51 @@ AppType sniToAppType(const std::string& sni) {
     if (lower_sni.find("cloudflare") != std::string::npos ||
         lower_sni.find("cf-") != std::string::npos) {
         return AppType::CLOUDFLARE;
+    }
+    
+    // Wikipedia / Wikimedia
+    if (lower_sni.find("wikipedia") != std::string::npos ||
+        lower_sni.find("wikimedia") != std::string::npos) {
+        return AppType::WIKIPEDIA;
+    }
+    
+    // Reddit
+    if (lower_sni.find("reddit") != std::string::npos ||
+        lower_sni.find("redd.it") != std::string::npos) {
+        return AppType::REDDIT;
+    }
+    
+    // OpenAI / ChatGPT
+    if (lower_sni.find("openai") != std::string::npos ||
+        lower_sni.find("chatgpt") != std::string::npos ||
+        lower_sni.find("oaistatic") != std::string::npos ||
+        lower_sni.find("oaiusercontent") != std::string::npos) {
+        return AppType::OPENAI;
+    }
+    
+    // Notion
+    if (lower_sni.find("notion") != std::string::npos ||
+        lower_sni.find("notion.so") != std::string::npos ||
+        lower_sni.find("notion.site") != std::string::npos) {
+        return AppType::NOTION;
+    }
+    
+    // LeetCode
+    if (lower_sni.find("leetcode") != std::string::npos) {
+        return AppType::LEETCODE;
+    }
+    
+    // LinkedIn
+    if (lower_sni.find("linkedin") != std::string::npos ||
+        lower_sni.find("licdn") != std::string::npos) {
+        return AppType::LINKEDIN;
+    }
+    
+    // StackOverflow
+    if (lower_sni.find("stackoverflow") != std::string::npos ||
+        lower_sni.find("stackexchange") != std::string::npos ||
+        lower_sni.find("sstatic.net") != std::string::npos) {
+        return AppType::STACKOVERFLOW;
     }
     
     // If SNI is present but not recognized, still mark as TLS/HTTPS

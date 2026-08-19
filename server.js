@@ -15,8 +15,18 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ── helpers ──────────────────────────────────────────────
 function readJson(file, fallback) {
-    try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
-    catch { return fallback; }
+    try {
+        let content = fs.readFileSync(file, 'utf8');
+        try {
+            return JSON.parse(content);
+        } catch (e) {
+            // Fix unescaped Windows backslashes (e.g. \Device\NPF_...)
+            content = content.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+            return JSON.parse(content);
+        }
+    } catch {
+        return fallback;
+    }
 }
 
 function writeJson(file, data) {
@@ -27,6 +37,17 @@ function writeJson(file, data) {
 app.get('/data', (req, res) => {
     const data = readJson(DATA_FILE, { error: 'output.json not found' });
     res.json(data);
+});
+
+// ── GET /mode ─────────────────────────────────────────────
+app.get('/mode', (req, res) => {
+    const data = readJson(DATA_FILE, {});
+    res.json({
+        mode: data.mode || 'offline',
+        source_name: data.source_name || 'pcap',
+        capture_drops: data.capture_drops || 0,
+        processing_drops: data.processing_drops || 0
+    });
 });
 
 // ── GET /rules ────────────────────────────────────────────

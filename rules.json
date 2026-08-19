@@ -1,13 +1,6 @@
 {
   "blocked_ips": [],
-  "blocked_domains": [
-    "*.facebook.com"
-  ],
-  "blocked_apps": [
-    "TikTok",
-    "DNS"
-  ],
-  "blocked_ports": [
-    4444
-  ]
+  "blocked_domains": [],
+  "blocked_apps": [],
+  "blocked_ports": []
 }

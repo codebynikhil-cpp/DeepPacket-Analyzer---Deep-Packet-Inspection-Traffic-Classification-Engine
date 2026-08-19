@@ -76,97 +76,82 @@ This guide will help you build and run the DPI Engine on Windows. Follow these s
 2. In the terminal, type:
 
 ```cmd
-cd packet_analyzer
-
-cl /EHsc /std:c++17 /O2 /I include /Fe:dpi_engine.exe ^
-    src\dpi_mt.cpp ^
-    src\pcap_reader.cpp ^
+cl /EHsc /std:c++17 /O2 /I include /Fe:PacketInspector.exe ^
+    src\main.cpp ^
     src\packet_parser.cpp ^
+    src\pcap_reader.cpp ^
+    src\packet_source.cpp ^
+    src\live_capture_source.cpp ^
     src\sni_extractor.cpp ^
-    src\types.cpp
+    src\dns_parser.cpp ^
+    src\http_parser.cpp ^
+    src\types.cpp ^
+    src\fast_path.cpp ^
+    src\dpi_engine.cpp ^
+    src\connection_tracker.cpp ^
+    src\rule_manager.cpp ^
+    src\stats_collector.cpp ^
+    ws2_32.lib
 ```
 
-3. If successful, you'll see `dpi_engine.exe` in the folder
+3. If successful, you'll see `PacketInspector.exe` in the folder.
 
 ### Step 5: Run the Program
 
 ```cmd
-dpi_engine.exe test_dpi.pcap output.pcap
+:: 1. List available network interfaces
+PacketInspector.exe --list-interfaces
+
+:: 2. Run real-time live capture (Requires Npcap)
+PacketInspector.exe --interface 1
+
+:: 3. Run offline PCAP analysis
+PacketInspector.exe --pcap test_dpi.pcap output.pcap
 ```
 
 ---
 
 ## Option 2: Using MinGW-w64 (GCC for Windows)
 
-### Step 1: Install MSYS2
+### Step 1: Install MSYS2 & Compiler
 
 1. Download MSYS2 from: https://www.msys2.org/
-   - Click the download button for `msys2-x86_64-xxxxxxxx.exe`
-
-2. Run the installer:
-   - Install to `C:\msys64` (default)
-   - Keep "Run MSYS2 now" checked
-   - Click Finish
-
-3. A terminal window opens. Run these commands:
-
+2. Install to `C:\msys64` and open **MSYS2 UCRT64** or **MSYS2 MINGW64**.
+3. Install compiler and tools:
 ```bash
-# Update package database
-pacman -Syu
+pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-cmake
 ```
 
-4. The window will close. Open **"MSYS2 MINGW64"** from Start Menu (NOT the regular MSYS2!)
+### Step 2: Build the Project (CMake or g++)
 
-5. Install the compiler:
-
-```bash
-pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-make
+**Using CMake + Ninja (Recommended):**
+```powershell
+cmake -B build -S . -G "Ninja"
+cmake --build build
 ```
 
-6. Type `Y` and press Enter when asked
+**Or Direct g++ Build:**
+```powershell
+g++ -std=c++17 -O2 -I include -o PacketInspector.exe `
+    src/main.cpp src/packet_parser.cpp src/pcap_reader.cpp `
+    src/packet_source.cpp src/live_capture_source.cpp `
+    src/sni_extractor.cpp src/dns_parser.cpp src/http_parser.cpp `
+    src/types.cpp src/fast_path.cpp src/dpi_engine.cpp `
+    src/connection_tracker.cpp src/rule_manager.cpp `
+    src/stats_collector.cpp -lws2_32
+```
 
-### Step 2: Add to PATH
+### Step 3: Run
 
-1. Press `Win + R`, type `sysdm.cpl`, press Enter
+```powershell
+# List network interfaces
+.\PacketInspector.exe --list-interfaces
 
-2. Click **"Advanced"** tab → **"Environment Variables"**
+# Live capture on interface #1
+.\PacketInspector.exe --interface 1
 
-3. Under "System variables", find **"Path"**, click **"Edit"**
-
-4. Click **"New"** and add:
-   ```
-   C:\msys64\mingw64\bin
-   ```
-
-5. Click OK on all windows
-
-6. **Restart your computer** (important!)
-
-### Step 3: Build the Project
-
-1. Open **Command Prompt** (cmd) or **PowerShell**
-
-2. Navigate to the project:
-   ```cmd
-   cd C:\path\to\packet_analyzer
-   ```
-
-3. Build:
-   ```cmd
-   g++ -std=c++17 -O2 -I include -o dpi_engine.exe ^
-       src/dpi_mt.cpp ^
-       src/pcap_reader.cpp ^
-       src/packet_parser.cpp ^
-       src/sni_extractor.cpp ^
-       src/types.cpp
-   ```
-
-4. If successful, you'll see `dpi_engine.exe`
-
-### Step 4: Run
-
-```cmd
-dpi_engine.exe test_dpi.pcap output.pcap
+# Offline PCAP mode
+.\PacketInspector.exe --pcap test_dpi.pcap output.pcap
 ```
 
 ---

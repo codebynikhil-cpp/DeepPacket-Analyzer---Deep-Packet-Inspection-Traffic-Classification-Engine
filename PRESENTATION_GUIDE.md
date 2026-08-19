@@ -295,25 +295,37 @@ The `RuleManager` supports 4 types of blocking rules:
 ```powershell
 g++ -std=c++17 -O2 -I include -o PacketInspector.exe `
     src/main.cpp src/packet_parser.cpp src/pcap_reader.cpp `
+    src/packet_source.cpp src/live_capture_source.cpp `
     src/sni_extractor.cpp src/dns_parser.cpp src/http_parser.cpp `
     src/types.cpp src/fast_path.cpp src/dpi_engine.cpp `
-    src/connection_tracker.cpp src/rule_manager.cpp src/stats_collector.cpp
+    src/connection_tracker.cpp src/rule_manager.cpp `
+    src/stats_collector.cpp -lws2_32
 ```
 
 ### Step 2 — Run the Analyzer
+
+**Mode A: Real-Time Live Network Capture**
 ```powershell
-.\PacketInspector.exe test_dpi.pcap output.pcap
+# List interfaces:
+.\PacketInspector.exe --list-interfaces
+
+# Capture live on interface 1:
+.\PacketInspector.exe --interface 1
+```
+
+**Mode B: Offline PCAP Analysis**
+```powershell
+.\PacketInspector.exe --pcap test_dpi.pcap output.pcap
 ```
 
 ### Step 3 — Start the API Server
 ```powershell
-node server.js
+npm start
+# or: node server.js
 ```
 
 ### Step 4 — Open the Dashboard
 Open your browser → **http://localhost:3000/**
-
-> **Note on AppLocker:** Windows Application Control may block compiled `.exe` files in user project directories. If blocked, copy the binary to `C:\Users\<you>\` and run from there, or use a Developer Command Prompt with elevated trust.
 
 ---
 
@@ -321,30 +333,30 @@ Open your browser → **http://localhost:3000/**
 
 | Phase | What Was Built |
 |---|---|
-| **Phase 1** | PCAP reading, Ethernet/IP/TCP/UDP parsing, basic flow tracking |
-| **Phase 2** | Multi-threaded prototype with load balancer (later refactored) |
-| **Phase 3** | Clean single-threaded pipeline, SNI extractor, modular architecture |
-| **Phase 4** | DNS parser, HTTP parser, StatsCollector, real-time console output |
-| **Phase 5** | JSON export (`output.json`), alert system, suspicious port detection |
-| **Phase 6** | Node.js Express server, `/data` and `/rules` REST API |
-| **Phase 7** | Full web dashboard (KPIs, protocol donut, live throughput chart, application table, logs, firewall rule UI, alerts) |
-| **Phase 8** | Enriched test PCAP with 231 packets — UDP, NTP, Syslog, VoIP/RTP, QUIC, ICMP, streaming, 4 suspicious-port alerts |
+| **Phase 1** | Raw binary PCAP reading, Ethernet/IP/TCP/UDP parsing, 5-tuple flow tracking |
+| **Phase 2** | Fast Path caching & decision routing |
+| **Phase 3** | TLS Client Hello & SNI extractor (domain extraction from encrypted HTTPS) |
+| **Phase 4** | RFC 1035 DNS parser, HTTP parser, application classifier (16+ apps) |
+| **Phase 5** | High-speed StatsCollector, alert system, suspicious port detection, JSON export |
+| **Phase 6** | Node.js Express server, dynamic `/data` and `/rules` REST API |
+| **Phase 7** | Modern web dashboard (live mode indicator, throughput chart, protocol donut, logs, rules manager) |
+| **Phase 8** | Real-Time Live Capture via `LiveCaptureSource`, multi-threaded Producer-Consumer queue, dynamic libpcap/Npcap loading, and CLI flags (`--list-interfaces`, `--interface`, `--pcap`) |
 
 ---
 
 ## 🎓 11. Viva Review Q&A (Easy 1-Sentence Answers)
 
 ### Q1: How do you classify HTTPS traffic if it is encrypted?
-> **Answer:** *"Even though HTTPS payload is encrypted, the initial **TLS Client Hello** handshake sends the domain name in plaintext via the **Server Name Indication (SNI)** header, which our SNI Extractor parses."*
+> **Answer:** *"Even though the HTTPS payload is encrypted, the initial **TLS Client Hello** handshake sends the domain name in plaintext via the **Server Name Indication (SNI)** header, which our SNI Extractor parses."*
 
 ### Q2: Why did you write the DPI engine in C++ instead of Node.js or Python?
-> **Answer:** *"Network packet processing requires extremely low memory latency and microsecond execution speed. C++ allows direct memory buffer manipulation without garbage collection pauses."*
+> **Answer:** *"Network packet processing requires nanosecond memory access and high throughput. C++ provides direct zero-copy buffer access without garbage collection pauses, easily sustaining >50,000 packets per second."*
 
 ### Q3: What is a 5-Tuple and why do you use it?
-> **Answer:** *"A 5-Tuple consists of Source IP, Destination IP, Source Port, Destination Port, and Protocol. It uniquely identifies a single connection flow so we only need to classify the first few packets instead of every single packet in the stream."*
+> **Answer:** *"A 5-Tuple consists of Source IP, Destination IP, Source Port, Destination Port, and Protocol. It uniquely identifies a bidirectional flow so we only classify the initial packets and fast-path all subsequent packets."*
 
-### Q4: How does your firewall rule blocking work?
-> **Answer:** *"When a packet arrives, the `ConnectionTracker` checks `RuleManager`'s thread-safe hash tables for matching IPs, ports, domains, or app types. If matched, the engine marks the flow state as `DROP` and discards the packet."*
+### Q4: How does your real-time packet capture handle high packet bursts without dropping?
+> **Answer:** *"We use a multi-threaded Producer-Consumer architecture with a dedicated capture thread feeding a thread-safe bounded `PacketQueue` (10,000 packet limit), isolating packet arrival from DPI analysis time."*
 
-### Q5: Did you use external networking libraries like `libpcap`?
-> **Answer:** *"No, I wrote the PCAP file header parser and packet structure byte-decoders from scratch in raw C++ to understand binary struct alignment and network protocols deeply."*
+### Q5: Does the project support both live network traffic and recorded files?
+> **Answer:** *"Yes, via a unified `PacketSource` polymorphism abstraction, supporting `--interface` for live NIC capture (via Npcap/libpcap) and `--pcap` for offline PCAP file analysis."*

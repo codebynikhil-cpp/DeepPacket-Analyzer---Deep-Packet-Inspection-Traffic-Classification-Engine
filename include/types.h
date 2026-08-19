@@ -79,6 +79,13 @@ enum class AppType {
     DISCORD,
     GITHUB,
     CLOUDFLARE,
+    WIKIPEDIA,
+    REDDIT,
+    OPENAI,
+    NOTION,
+    LEETCODE,
+    LINKEDIN,
+    STACKOVERFLOW,
     // Add more as needed
     APP_COUNT  // Keep this last for counting
 };
