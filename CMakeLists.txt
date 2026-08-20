@@ -21,6 +21,7 @@ set(SOURCES
     src/connection_tracker.cpp
     src/rule_manager.cpp
     src/stats_collector.cpp
+    src/wfp_enforcement.cpp
 )
 
 # Header files location
@@ -40,6 +41,7 @@ if(PKG_CONFIG_FOUND)
 endif()
 
 if(WIN32)
-    # Link Windows socket and concurrency libraries
-    target_link_libraries(PacketInspector ws2_32)
+    # Link Windows socket, concurrency, and WFP libraries
+    target_link_libraries(PacketInspector ws2_32 fwpuclnt)
 endif()
+

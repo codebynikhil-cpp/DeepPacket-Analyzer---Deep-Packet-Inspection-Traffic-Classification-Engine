@@ -25,6 +25,11 @@ public:
         }
 
         queue_.push(std::move(packet));
+        packets_pushed_++;
+        size_t current_size = queue_.size();
+        if (current_size > max_queue_depth_) {
+            max_queue_depth_ = current_size;
+        }
         cv_.notify_one();
         return true;
     }
@@ -45,6 +50,7 @@ public:
 
         packet = std::move(queue_.front());
         queue_.pop();
+        packets_popped_++;
         return true;
     }
 
@@ -63,6 +69,19 @@ public:
         return processing_drops_.load();
     }
 
+    size_t getMaxQueueDepth() const {
+        std::unique_lock<std::mutex> lock(mutex_);
+        return max_queue_depth_;
+    }
+
+    uint64_t getPacketsPushed() const {
+        return packets_pushed_.load();
+    }
+
+    uint64_t getPacketsPopped() const {
+        return packets_popped_.load();
+    }
+
     bool isStopped() const {
         return stopped_.load();
     }
@@ -74,8 +93,12 @@ private:
     std::condition_variable cv_;
     std::atomic<bool> stopped_{false};
     std::atomic<uint64_t> processing_drops_{0};
+    std::atomic<uint64_t> packets_pushed_{0};
+    std::atomic<uint64_t> packets_popped_{0};
+    size_t max_queue_depth_{0};
 };
 
 } // namespace PacketAnalyzer
+
 
 #endif // PACKET_QUEUE_H

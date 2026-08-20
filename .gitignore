@@ -1,26 +1,56 @@
-# Build artifacts
+# ── Build directories ──────────────────────────────────────────────────────────
 build/
+out/
 bin/
+obj/
+
+# ── CMake generated ────────────────────────────────────────────────────────────
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+*.cmake
+
+# ── Compiled binaries & intermediate objects ───────────────────────────────────
 *.exe
-*.o
+*.dll
 *.obj
-packet_analyzer.exe
-app.exe
+*.o
+*.pdb
+*.ilk
+*.lib
+*.exp
+*.so
+*.dylib
+
+# ── Runtime output files ───────────────────────────────────────────────────────
+output.json
+rules_reload.flag
+*.log
+*.tmp
+
+# ── PCAP captures ──────────────────────────────────────────────────────────────
+*.pcap
+*.pcapng
+
+# ── WFP debugging dumps ────────────────────────────────────────────────────────
+wfp_*.xml
+
+# ── Node.js ────────────────────────────────────────────────────────────────────
 node_modules/
 
-# Test and output files
-output.pcap
-test_dpi.pcap
-tmp.txt
-# Keep output.json and rules.json tracked as demo data
-
-# IDE / OS files
-.vscode/
+# ── IDE / OS ───────────────────────────────────────────────────────────────────
 .vs/
+.vscode/
+.idea/
 *.suo
 *.user
 *.opendb
 *.VC.db
+*.VC.VC.opendb
 .DS_Store
-dpi_engine
-Untitled-1.md
+Thumbs.db
+desktop.ini
+
+# ── Windows specific ───────────────────────────────────────────────────────────
+ehthumbs.db
+[Dd]esktop.ini

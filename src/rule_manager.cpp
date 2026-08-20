@@ -1,8 +1,10 @@
 #include "rule_manager.h"
+#include "wfp_enforcement.h"
 #include <sstream>
 #include <iostream>
 #include <algorithm>
 #include <mutex>
+
 
 namespace DPI {
 
@@ -42,6 +44,9 @@ void RuleManager::blockIP(uint32_t ip) {
     std::unique_lock<std::shared_mutex> lock(ip_mutex_);
     blocked_ips_.insert(ip);
     std::cout << "[RuleManager] Blocked IP: " << ipToString(ip) << std::endl;
+    if (enforcement_) {
+        enforcement_->blockIP(ip);
+    }
 }
 
 void RuleManager::blockIP(const std::string& ip) {
@@ -52,6 +57,9 @@ void RuleManager::unblockIP(uint32_t ip) {
     std::unique_lock<std::shared_mutex> lock(ip_mutex_);
     blocked_ips_.erase(ip);
     std::cout << "[RuleManager] Unblocked IP: " << ipToString(ip) << std::endl;
+    if (enforcement_) {
+        enforcement_->unblockIP(ip);
+    }
 }
 
 void RuleManager::unblockIP(const std::string& ip) {
@@ -112,6 +120,9 @@ void RuleManager::blockDomain(const std::string& domain) {
     }
     
     std::cout << "[RuleManager] Blocked domain: " << domain << std::endl;
+    if (enforcement_) {
+        enforcement_->blockDomain(domain, {});
+    }
 }
 
 void RuleManager::unblockDomain(const std::string& domain) {
@@ -127,7 +138,11 @@ void RuleManager::unblockDomain(const std::string& domain) {
     }
     
     std::cout << "[RuleManager] Unblocked domain: " << domain << std::endl;
+    if (enforcement_) {
+        enforcement_->unblockDomain(domain);
+    }
 }
+
 
 bool RuleManager::domainMatchesPattern(const std::string& domain, const std::string& pattern) {
     // Handle *.example.com pattern
@@ -190,11 +205,17 @@ void RuleManager::blockPort(uint16_t port) {
     std::unique_lock<std::shared_mutex> lock(port_mutex_);
     blocked_ports_.insert(port);
     std::cout << "[RuleManager] Blocked port: " << port << std::endl;
+    if (enforcement_) {
+        enforcement_->blockPort(port);
+    }
 }
 
 void RuleManager::unblockPort(uint16_t port) {
     std::unique_lock<std::shared_mutex> lock(port_mutex_);
     blocked_ports_.erase(port);
+    if (enforcement_) {
+        enforcement_->unblockPort(port);
+    }
 }
 
 bool RuleManager::isPortBlocked(uint16_t port) const {
@@ -344,7 +365,44 @@ void RuleManager::clearAll() {
         std::unique_lock<std::shared_mutex> lock(port_mutex_);
         blocked_ports_.clear();
     }
+    if (enforcement_) {
+        enforcement_->clearAll();
+    }
     std::cout << "[RuleManager] All rules cleared" << std::endl;
+}
+
+void RuleManager::reinstallAllWfpRules(const std::unordered_map<uint32_t, std::string>& ip_to_domain) {
+    if (!enforcement_) return;
+
+    // 1. IP blocks
+    {
+        std::shared_lock<std::shared_mutex> lock(ip_mutex_);
+        for (uint32_t ip : blocked_ips_) {
+            enforcement_->blockIP(ip);
+        }
+    }
+
+    // 2. Port blocks
+    {
+        std::shared_lock<std::shared_mutex> lock(port_mutex_);
+        for (uint16_t port : blocked_ports_) {
+            enforcement_->blockPort(port);
+        }
+    }
+
+    // 3. Domain blocks - lookup known IPs from ip_to_domain
+    {
+        std::shared_lock<std::shared_mutex> lock(domain_mutex_);
+        for (const std::string& domain : blocked_domains_) {
+            std::vector<uint32_t> known_ips;
+            for (const auto& kv : ip_to_domain) {
+                if (kv.second == domain) {
+                    known_ips.push_back(kv.first);
+                }
+            }
+            enforcement_->blockDomain(domain, known_ips);
+        }
+    }
 }
 
 RuleManager::RuleStats RuleManager::getStats() const {
@@ -371,3 +429,4 @@ RuleManager::RuleStats RuleManager::getStats() const {
 }
 
 } // namespace DPI
+

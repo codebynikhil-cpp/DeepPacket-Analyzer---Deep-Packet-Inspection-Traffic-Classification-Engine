@@ -1,0 +1,44 @@
+{
+  "websites": [
+    {
+      "name": "GitHub",
+      "domains": ["github.com", "*.github.com"],
+      "category": "development"
+    },
+    {
+      "name": "LeetCode",
+      "domains": ["leetcode.com", "*.leetcode.com"],
+      "category": "education"
+    },
+    {
+      "name": "Unstop",
+      "domains": ["unstop.com", "*.unstop.com"],
+      "category": "career"
+    },
+    {
+      "name": "YouTube",
+      "domains": ["youtube.com", "*.youtube.com", "googlevideo.com", "*.googlevideo.com"],
+      "category": "streaming"
+    },
+    {
+      "name": "Google",
+      "domains": ["google.com", "*.google.com"],
+      "category": "search"
+    },
+    {
+      "name": "Discord",
+      "domains": ["discord.com", "*.discord.com", "discordapp.com", "*.discordapp.com"],
+      "category": "messaging"
+    },
+    {
+      "name": "StackOverflow",
+      "domains": ["stackoverflow.com", "*.stackoverflow.com"],
+      "category": "development"
+    },
+    {
+      "name": "Wikipedia",
+      "domains": ["wikipedia.org", "*.wikipedia.org"],
+      "category": "knowledge"
+    }
+  ]
+}

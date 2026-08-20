@@ -59,6 +59,14 @@ app.get('/rules', (req, res) => {
     res.json(rules);
 });
 
+function touchReloadFlag() {
+    try {
+        fs.writeFileSync(path.join(__dirname, 'rules_reload.flag'), 'reload');
+    } catch (e) {
+        console.warn('Failed to write rules_reload.flag', e);
+    }
+}
+
 // ── POST /rules ───────────────────────────────────────────
 // Body: { type: "ip"|"domain"|"app"|"port", value: "..." }
 app.post('/rules', (req, res) => {
@@ -79,6 +87,7 @@ app.post('/rules', (req, res) => {
     if (!rules[key].includes(v)) rules[key].push(v);
 
     writeJson(RULES_FILE, rules);
+    touchReloadFlag();
     res.json({ success: true, rules });
 });
 
@@ -100,7 +109,94 @@ app.delete('/rules', (req, res) => {
     rules[key] = rules[key].filter(x => x !== v);
 
     writeJson(RULES_FILE, rules);
+    touchReloadFlag();
     res.json({ success: true, rules });
+});
+
+
+const https = require('https');
+const http  = require('http');
+
+const CRITICAL_FILE = path.join(__dirname, 'critical_websites.json');
+
+// ── GET /critical-websites ────────────────────────────────
+app.get('/critical-websites', (req, res) => {
+    const data = readJson(CRITICAL_FILE, { websites: [] });
+    res.json(data);
+});
+
+// ── Health checker cache ──────────────────────────────────
+let healthCache = {};
+let lastHealthCheck = 0;
+
+function checkUrlHealth(targetUrl, timeoutMs = 4000) {
+    return new Promise((resolve) => {
+        const start = Date.now();
+        const client = targetUrl.startsWith('https') ? https : http;
+        const req = client.get(targetUrl, { timeout: timeoutMs, headers: { 'User-Agent': 'DeepPacket-HealthChecker/1.0' } }, (resp) => {
+            const elapsed = Date.now() - start;
+            resp.resume(); // consume response data to free up memory
+            resolve({ status: 'UP', latency_ms: elapsed, code: resp.statusCode });
+        });
+        req.on('timeout', () => {
+            req.destroy();
+            resolve({ status: 'DOWN', latency_ms: null, reason: 'timeout' });
+        });
+        req.on('error', (err) => {
+            resolve({ status: 'DOWN', latency_ms: null, reason: err.code || err.message });
+        });
+    });
+}
+
+// ── GET /health ───────────────────────────────────────────
+app.get('/health', async (req, res) => {
+    const rules = readJson(RULES_FILE, { blocked_domains: [] });
+    const blockedDomains = rules.blocked_domains || [];
+    const critData = readJson(CRITICAL_FILE, { websites: [] });
+    const websites = critData.websites || [];
+
+    const now = Date.now();
+    // Cache health probes for 10 seconds
+    if (now - lastHealthCheck < 10000 && Object.keys(healthCache).length > 0) {
+        return res.json(healthCache);
+    }
+
+    const results = {};
+    for (const site of websites) {
+        const primaryDomain = site.domains[0].replace('*.', '');
+        
+        // Check if blocked by policy
+        const isBlocked = blockedDomains.some(bd => {
+            const cleanBd = bd.replace('*.', '').toLowerCase();
+            return primaryDomain.toLowerCase() === cleanBd || primaryDomain.toLowerCase().endsWith('.' + cleanBd);
+        });
+
+        if (isBlocked) {
+            results[site.name] = {
+                name: site.name,
+                domain: primaryDomain,
+                category: site.category,
+                state: 'BLOCKED BY POLICY',
+                latency_ms: null,
+                last_checked: new Date().toLocaleTimeString()
+            };
+        } else {
+            const probe = await checkUrlHealth(`https://${primaryDomain}`);
+            results[site.name] = {
+                name: site.name,
+                domain: primaryDomain,
+                category: site.category,
+                state: probe.status,
+                latency_ms: probe.latency_ms,
+                reason: probe.reason || (probe.code ? `HTTP ${probe.code}` : ''),
+                last_checked: new Date().toLocaleTimeString()
+            };
+        }
+    }
+
+    healthCache = { last_updated: new Date().toISOString(), websites: results };
+    lastHealthCheck = now;
+    res.json(healthCache);
 });
 
 app.listen(PORT, () => {
@@ -108,4 +204,6 @@ app.listen(PORT, () => {
     console.log(`👉 UI Dashboard : http://localhost:${PORT}/`);
     console.log(`👉 API Data     : http://localhost:${PORT}/data`);
     console.log(`👉 Rules API    : http://localhost:${PORT}/rules`);
+    console.log(`👉 Health API   : http://localhost:${PORT}/health`);
 });
+

@@ -3,6 +3,7 @@
 
 #include "pcap_reader.h"
 #include "packet_parser.h"
+#include "types.h"
 #include <chrono>
 #include <cstdint>
 #include <map>
@@ -10,7 +11,11 @@
 #include <string>
 #include <mutex>
 
+namespace PacketAnalyzer { class PacketQueue; }
+
 namespace DPI {
+
+class WfpEnforcement;
 
 class StatsCollector {
 public:
@@ -22,12 +27,30 @@ public:
         source_name_ = source_name;
     }
 
+    void setWfpEnforcement(const WfpEnforcement* wfp) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        wfp_enforcement_ = wfp;
+    }
+
+    void setPacketQueue(const PacketAnalyzer::PacketQueue* queue) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        packet_queue_ = queue;
+    }
+
+
+    void setProtectionRequested(bool requested) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        protection_requested_ = requested;
+    }
+
     void update(const PacketAnalyzer::RawPacket& raw, const PacketAnalyzer::ParsedPacket& parsed);
     
     void checkAndPrint(const std::vector<std::string>& dns, 
                       const std::vector<std::string>& http, 
                       const std::vector<std::string>& tracker_alerts, 
                       const std::map<std::string, size_t>& apps, 
+                      const std::map<std::string, size_t>& domains,
+                      const std::vector<FlowRecord>& flows,
                       size_t connections = 0, 
                       size_t dropped = 0,
                       uint64_t capture_drops = 0,
@@ -38,6 +61,8 @@ public:
                     const std::vector<std::string>& http, 
                     const std::vector<std::string>& tracker_alerts, 
                     const std::map<std::string, size_t>& apps, 
+                    const std::map<std::string, size_t>& domains,
+                    const std::vector<FlowRecord>& flows,
                     size_t connections = 0, 
                     size_t dropped = 0,
                     uint64_t capture_drops = 0,
@@ -48,6 +73,10 @@ private:
 
     std::string mode_ = "offline";
     std::string source_name_ = "pcap";
+    const WfpEnforcement* wfp_enforcement_ = nullptr;
+    const PacketAnalyzer::PacketQueue* packet_queue_ = nullptr;
+    bool protection_requested_ = false;
+
 
     uint64_t total_packets_ = 0;
     uint64_t total_bytes_ = 0;
@@ -70,6 +99,8 @@ private:
                     const std::vector<std::string>& http, 
                     const std::vector<std::string>& alerts, 
                     const std::map<std::string, size_t>& apps, 
+                    const std::map<std::string, size_t>& domains,
+                    const std::vector<FlowRecord>& flows,
                     size_t connections, 
                     size_t dropped,
                     uint64_t capture_drops,
@@ -79,3 +110,4 @@ private:
 } // namespace DPI
 
 #endif // STATS_COLLECTOR_H
+

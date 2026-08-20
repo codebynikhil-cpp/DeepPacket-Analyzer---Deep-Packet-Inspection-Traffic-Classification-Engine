@@ -1,7 +1,12 @@
 #include "stats_collector.h"
+#include "wfp_enforcement.h"
+#include "packet_queue.h"
+#include "types.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+
+
 
 namespace DPI {
 
@@ -72,6 +77,8 @@ void StatsCollector::exportJson(const std::string& filename,
                                 const std::vector<std::string>& http, 
                                 const std::vector<std::string>& alerts, 
                                 const std::map<std::string, size_t>& apps, 
+                                const std::map<std::string, size_t>& domains,
+                                const std::vector<FlowRecord>& flows,
                                 size_t connections, 
                                 size_t dropped,
                                 uint64_t capture_drops,
@@ -86,16 +93,35 @@ void StatsCollector::exportJson(const std::string& filename,
     out << "  \"dropped\": " << dropped << ",\n";
     out << "  \"capture_drops\": " << capture_drops << ",\n";
     out << "  \"processing_drops\": " << processing_drops << ",\n";
+    if (packet_queue_) {
+        out << "  \"queue_size\": " << packet_queue_->size() << ",\n";
+        out << "  \"max_queue_depth\": " << packet_queue_->getMaxQueueDepth() << ",\n";
+        out << "  \"packets_pushed\": " << packet_queue_->getPacketsPushed() << ",\n";
+        out << "  \"packets_popped\": " << packet_queue_->getPacketsPopped() << ",\n";
+    }
     out << "  \"mode\": \"" << escapeJson(mode_) << "\",\n";
+
     out << "  \"source_name\": \"" << escapeJson(source_name_) << "\",\n";
+    out << "  \"protection_requested\": " << (protection_requested_ ? "true" : "false") << ",\n";
     out << "  \"protocols\": { \"TCP\": " << tcp_packets_ << ", \"UDP\": " << udp_packets_ << ", \"ICMP\": " << icmp_packets_ << " },\n";
     
+    // Applications breakdown (e.g. YouTube, GitHub, LeetCode, Unstop)
     out << "  \"applications\": {";
     size_t app_idx = 0;
     for (const auto& kv : apps) {
         out << "\"" << escapeJson(kv.first) << "\": " << kv.second;
         if (app_idx < apps.size() - 1) out << ", ";
         app_idx++;
+    }
+    out << "},\n";
+
+    // Domains breakdown (actual FQDNs e.g. unstop.com, api.github.com)
+    out << "  \"domains\": {";
+    size_t dom_idx = 0;
+    for (const auto& kv : domains) {
+        out << "\"" << escapeJson(kv.first) << "\": " << kv.second;
+        if (dom_idx < domains.size() - 1) out << ", ";
+        dom_idx++;
     }
     out << "},\n";
     
@@ -118,9 +144,37 @@ void StatsCollector::exportJson(const std::string& filename,
         out << "\"" << escapeJson(alerts[i]) << "\"";
         if (i < alerts.size() - 1) out << ", ";
     }
-    out << "]\n";
+    out << "],\n";
+
+    // Recent flows table (50-100 flows)
+    out << "  \"flows\": [\n";
+    for (size_t i = 0; i < flows.size(); ++i) {
+        const auto& f = flows[i];
+        out << "    { "
+            << "\"time\": \"" << escapeJson(f.timestamp) << "\", "
+            << "\"src_ip\": \"" << escapeJson(f.src_ip) << "\", "
+            << "\"src_port\": " << f.src_port << ", "
+            << "\"dst_ip\": \"" << escapeJson(f.dst_ip) << "\", "
+            << "\"dst_port\": " << f.dst_port << ", "
+            << "\"protocol\": \"" << escapeJson(f.protocol) << "\", "
+            << "\"domain\": \"" << escapeJson(f.domain) << "\", "
+            << "\"application\": \"" << escapeJson(f.application) << "\", "
+            << "\"method\": \"" << escapeJson(f.method) << "\", "
+            << "\"policy\": \"" << escapeJson(f.policy) << "\", "
+            << "\"enforcement\": \"" << escapeJson(f.enforcement) << "\""
+            << " }";
+        if (i < flows.size() - 1) out << ",";
+        out << "\n";
+    }
+    out << "  ],\n";
     
+    if (wfp_enforcement_) {
+        out << "  " << wfp_enforcement_->getStateJson() << "\n";
+    } else {
+        out << "  \"wfp\": { \"active\": false, \"status\": \"OFF (Monitor Mode)\", \"ip_filters\": 0, \"port_filters\": 0, \"domain_rules\": 0, \"total_filters\": 0 }\n";
+    }
     out << "}\n";
+
     out.close();
 }
 
@@ -128,6 +182,8 @@ void StatsCollector::checkAndPrint(const std::vector<std::string>& dns,
                                   const std::vector<std::string>& http, 
                                   const std::vector<std::string>& tracker_alerts, 
                                   const std::map<std::string, size_t>& apps, 
+                                  const std::map<std::string, size_t>& domains,
+                                  const std::vector<FlowRecord>& flows,
                                   size_t connections, 
                                   size_t dropped,
                                   uint64_t capture_drops,
@@ -138,10 +194,10 @@ void StatsCollector::checkAndPrint(const std::vector<std::string>& dns,
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_print_time_).count();
     
     if (elapsed >= static_cast<int64_t>(interval_ms)) {
-        double pps = (interval_packets_ * 1000.0) / elapsed;
+        double pps = (interval_packets_ * 1000.0) / (elapsed > 0 ? elapsed : 1);
         
-        if (pps > 1000.0) {
-            std::string msg = "High traffic detected";
+        if (pps > 2000.0) {
+            std::string msg = "High traffic surge detected";
             if (local_alerts_.size() < 10) {
                 local_alerts_.push_back(msg);
             }
@@ -150,7 +206,7 @@ void StatsCollector::checkAndPrint(const std::vector<std::string>& dns,
         std::vector<std::string> combined_alerts = tracker_alerts;
         combined_alerts.insert(combined_alerts.end(), local_alerts_.begin(), local_alerts_.end());
         
-        exportJson("output.json", dns, http, combined_alerts, apps, connections, dropped, capture_drops, processing_drops);
+        exportJson("output.json", dns, http, combined_alerts, apps, domains, flows, connections, dropped, capture_drops, processing_drops);
         
         last_print_time_ = now;
         interval_packets_ = 0;
@@ -161,6 +217,8 @@ void StatsCollector::printFinal(const std::vector<std::string>& dns,
                                 const std::vector<std::string>& http, 
                                 const std::vector<std::string>& tracker_alerts, 
                                 const std::map<std::string, size_t>& apps, 
+                                const std::map<std::string, size_t>& domains,
+                                const std::vector<FlowRecord>& flows,
                                 size_t connections, 
                                 size_t dropped,
                                 uint64_t capture_drops,
@@ -174,13 +232,12 @@ void StatsCollector::printFinal(const std::vector<std::string>& dns,
         avg_pps = (total_packets_ * 1000.0) / elapsed_total;
     }
     
-    std::cout << "\n[Stats] Final Traffic Breakdown:\n";
-    printMetrics(avg_pps);
-    
     std::vector<std::string> combined_alerts = tracker_alerts;
     combined_alerts.insert(combined_alerts.end(), local_alerts_.begin(), local_alerts_.end());
     
-    exportJson("output.json", dns, http, combined_alerts, apps, connections, dropped, capture_drops, processing_drops);
+    exportJson("output.json", dns, http, combined_alerts, apps, domains, flows, connections, dropped, capture_drops, processing_drops);
+    printMetrics(avg_pps);
 }
 
 } // namespace DPI
+

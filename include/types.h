@@ -164,6 +164,20 @@ enum class PacketAction {
     LOG_ONLY    // Forward but log
 };
 
+struct FlowRecord {
+    std::string timestamp;
+    std::string src_ip;
+    uint16_t    src_port = 0;
+    std::string dst_ip;
+    uint16_t    dst_port = 0;
+    std::string protocol;       // "TCP", "UDP", "ICMP"
+    std::string domain;         // e.g. "github.com", "unstop.com", "UNKNOWN"
+    std::string application;    // e.g. "GitHub", "Unstop", "UNKNOWN"
+    std::string method;         // "TLS SNI", "HTTP Host", "QUIC SNI", "DNS Correlation", "Port Heuristic"
+    std::string policy;         // "FORWARD", "DROP"
+    std::string enforcement;    // "WFP ACTIVE", "MONITOR ONLY"
+};
+
 // ============================================================================
 // Connection Entry (tracked per flow)
 // ============================================================================
@@ -171,7 +185,10 @@ struct Connection {
     FiveTuple tuple;
     ConnectionState state = ConnectionState::NEW;
     AppType app_type = AppType::UNKNOWN;
-    std::string sni;  // Server Name Indication (if detected)
+    std::string sni;             // Server Name Indication / Domain (if detected)
+    std::string app_name;        // Resolved friendly app name (e.g. "GitHub")
+    std::string detection_method = "Port Heuristic"; // "TLS SNI", "HTTP Host", "QUIC SNI", "DNS Correlation", "Port Heuristic"
+    std::string enforcement_state = "MONITOR ONLY";
     
     uint64_t packets_in = 0;
     uint64_t packets_out = 0;
@@ -188,6 +205,7 @@ struct Connection {
     bool syn_ack_seen = false;
     bool fin_seen = false;
 };
+
 
 // ============================================================================
 // Packet wrapper for queue passing

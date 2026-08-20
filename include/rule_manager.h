@@ -13,6 +13,8 @@
 
 namespace DPI {
 
+class WfpEnforcement;
+
 // ============================================================================
 // Rule Manager - Manages blocking/filtering rules
 // ============================================================================
@@ -123,8 +125,13 @@ public:
     
     RuleStats getStats() const;
 
+    // ========== WFP Enforcement Integration ==========
+    void setEnforcement(WfpEnforcement* enforcement) { enforcement_ = enforcement; }
+    void reinstallAllWfpRules(const std::unordered_map<uint32_t, std::string>& ip_to_domain);
+
 private:
     // Thread-safe containers with read-write locks
+
     mutable std::shared_mutex ip_mutex_;
     std::unordered_set<uint32_t> blocked_ips_;
     
@@ -146,8 +153,12 @@ private:
     
     // Helper: Check if domain matches pattern (supports wildcards)
     static bool domainMatchesPattern(const std::string& domain, const std::string& pattern);
+
+    WfpEnforcement* enforcement_ = nullptr;
 };
 
 } // namespace DPI
 
+
 #endif // RULE_MANAGER_H
+

@@ -21,7 +21,11 @@
             <a class="nav-link active" href="#overview"   onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Overview</a>
             <a class="nav-link"        href="#protocols"  onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Protocols</a>
             <a class="nav-link"        href="#apps"       onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Applications</a>
-            <a class="nav-link"        href="#traffic"    onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> DNS / HTTP</a>
+            <a class="nav-link"        href="#domains"    onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg> Domains</a>
+            <a class="nav-link"        href="#health"     onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Health Monitor</a>
+            <a class="nav-link"        href="#flows"      onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> Recent Flows</a>
+            <a class="nav-link"        href="#traffic"    onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> DNS / HTTP</a>
+
             <a class="nav-link"        href="#rules"      onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Firewall Rules</a>
             <a class="nav-link"        href="#alerts"     onclick="setNav(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Alerts <span id="alertNavBadge" class="nav-badge" style="display:none">0</span></a>
         </nav>
@@ -84,8 +88,14 @@
                     <div class="kpi-val green" id="kpiAlerts">0</div>
                     <div class="kpi-sub" id="kpiAlertSub">✓ System clean</div>
                 </div>
+                <div class="kpi" id="kpiWfpCard">
+                    <div class="kpi-label">WFP Enforcement</div>
+                    <div class="kpi-val green" id="kpiWfpStatus">ACTIVE</div>
+                    <div class="kpi-sub" id="kpiWfpSub">Windows Filtering Platform</div>
+                </div>
             </div>
         </section>
+
 
         <!-- ── Protocol Distribution ─────────────────── -->
         <section id="protocols" class="section">
@@ -120,6 +130,52 @@
             </div>
         </section>
 
+        <!-- ── Domain Breakdown ───────────────────────── -->
+        <section id="domains" class="section">
+            <div class="sh"><h2>Observed Domains</h2><span class="badge" id="domainBadge">—</span></div>
+            <div class="card">
+                <table class="tbl">
+                    <thead><tr><th>#</th><th>Domain (FQDN)</th><th>Flows</th><th>Share</th><th style="width:35%">Activity</th></tr></thead>
+                    <tbody id="domainsTbody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ── Critical Websites Health Monitor ───────── -->
+        <section id="health" class="section">
+            <div class="sh"><h2>Critical Website Health Monitor</h2><span class="badge" id="healthBadge">Probe Active</span></div>
+            <div class="card" style="padding:16px">
+                <div class="kpi-grid" id="healthGrid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+                    <!-- Dynamic health cards will be rendered here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Recent Traffic Flows Table ─────────────── -->
+        <section id="flows" class="section">
+            <div class="sh"><h2>Recent Connection Flows</h2><span class="badge" id="flowsBadge">Live Stream</span></div>
+            <div class="card" style="max-height: 420px; overflow-y: auto;">
+                <table class="tbl" id="flowsTable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Source</th>
+                            <th>Destination</th>
+                            <th>Proto</th>
+                            <th>Domain</th>
+                            <th>Application</th>
+                            <th>Method</th>
+                            <th>Policy</th>
+                            <th>Enforcement</th>
+                        </tr>
+                    </thead>
+                    <tbody id="flowsTbody">
+                        <tr><td colspan="9" class="log-empty">Waiting for connection flows...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <!-- ── DNS & HTTP ─────────────────────────────── -->
         <section id="traffic" class="section">
             <div class="sh"><h2>Captured Traffic</h2><span class="badge">DNS &amp; HTTP</span></div>
@@ -135,6 +191,7 @@
             </div>
         </section>
 
+
         <!-- ── Firewall Rules ─────────────────────────── -->
         <section id="rules" class="section">
             <div class="sh"><h2>Firewall Rules</h2><span class="badge" id="rulesBadge">0 active rules</span></div>
@@ -142,7 +199,8 @@
             <!-- Add Rule Form -->
             <div class="card rule-form-card">
                 <h3 class="rule-form-title">Add New Rule</h3>
-                <p class="rule-form-desc">Rules are saved to <code>rules.json</code> and loaded by the C++ engine on next run.</p>
+                <p class="rule-form-desc">Rules are hot-reloaded dynamically by the C++ engine. When WFP enforcement is active, rules install Windows Filtering Platform filters. <em>Note: Already-established connections may require closing browser tabs or reconnecting before the block takes full effect.</em></p>
+
                 <div class="rule-form">
                     <select id="ruleType" class="rule-select">
                         <option value="domain">Domain</option>

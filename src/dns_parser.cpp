@@ -1,4 +1,5 @@
 #include "dns_parser.h"
+#include <cstring>
 
 namespace DPI {
 
@@ -102,7 +103,10 @@ std::vector<DnsAnswer> DNSParser::extractAnswers(const uint8_t* payload, size_t 
 
         uint16_t rtype  = (static_cast<uint16_t>(payload[offset])   << 8) | payload[offset+1];
         // uint16_t rclass = (static_cast<uint16_t>(payload[offset+2]) << 8) | payload[offset+3];
-        // uint32_t ttl    = ...
+        uint32_t ttl    = (static_cast<uint32_t>(payload[offset+4]) << 24) |
+                          (static_cast<uint32_t>(payload[offset+5]) << 16) |
+                          (static_cast<uint32_t>(payload[offset+6]) << 8)  |
+                          payload[offset+7];
         uint16_t rdlen  = (static_cast<uint16_t>(payload[offset+8]) << 8) | payload[offset+9];
         offset += 10;
 
@@ -110,15 +114,14 @@ std::vector<DnsAnswer> DNSParser::extractAnswers(const uint8_t* payload, size_t 
 
         // Type A = 1 (IPv4 address)
         if (rtype == 1 && rdlen == 4) {
-            uint32_t ip = (static_cast<uint32_t>(payload[offset])   << 24) |
-                          (static_cast<uint32_t>(payload[offset+1]) << 16) |
-                          (static_cast<uint32_t>(payload[offset+2]) << 8)  |
-                           static_cast<uint32_t>(payload[offset+3]);
+            uint32_t ip;
+            std::memcpy(&ip, payload + offset, 4);
             if (!qname.empty()) {
-                results.push_back({qname, ip});
+                results.push_back({qname, ip, ttl});
             }
         }
         offset += rdlen;
+
     }
 
     return results;

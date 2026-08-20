@@ -149,6 +149,101 @@ function renderApps(apps) {
     }).join('');
 }
 
+function renderDomains(domains) {
+    const tbody = document.getElementById('domainsTbody');
+    const badge = document.getElementById('domainBadge');
+    if (!tbody) return;
+    if (!domains || !Object.keys(domains).length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="log-empty">No domain data captured yet</td></tr>';
+        if (badge) badge.textContent = '0 domains';
+        return;
+    }
+    const entries = Object.entries(domains).sort((a,b)=>b[1]-a[1]);
+    const tot = entries.reduce((s,[,v])=>s+v,0);
+    if (badge) badge.textContent = `${entries.length} domain(s) observed`;
+    tbody.innerHTML = entries.map(([name,count],i)=>{
+        const pct = tot>0 ? ((count/tot)*100).toFixed(1) : '0.0';
+        const col = APP_COLORS[(i + 3) % APP_COLORS.length];
+        return `<tr>
+            <td class="rank">${String(i+1).padStart(2,'0')}</td>
+            <td class="app-name" style="font-family:monospace;font-size:13px">${name}</td>
+            <td class="conn-n">${count}</td>
+            <td class="pct-n">${pct}%</td>
+            <td><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div></td>
+        </tr>`;
+    }).join('');
+}
+
+function renderFlows(flows) {
+    const tbody = document.getElementById('flowsTbody');
+    const badge = document.getElementById('flowsBadge');
+    if (!tbody) return;
+    if (!flows || !flows.length) {
+        tbody.innerHTML = '<tr><td colspan="9" class="log-empty">Waiting for connection flows...</td></tr>';
+        return;
+    }
+    if (badge) badge.textContent = `${flows.length} recent flow(s)`;
+    // Render most recent flows at top
+    const reversed = [...flows].reverse();
+    tbody.innerHTML = reversed.map(f => {
+        const isDrop = f.policy === 'DROP';
+        const polBadge = isDrop ? '<span class="log-badge" style="background:#ef4444;color:#fff">DROP</span>' : '<span class="log-badge" style="background:#10b981;color:#fff">FORWARD</span>';
+        const enfBadge = f.enforcement.includes('WFP ACTIVE') ? '<span style="color:#10b981;font-weight:600">WFP ACTIVE</span>' : '<span style="color:#9ca3af">MONITOR</span>';
+        return `<tr>
+            <td style="color:#9ca3af;font-size:12px">${f.time}</td>
+            <td style="font-family:monospace;font-size:12px">${f.src_ip}:${f.src_port}</td>
+            <td style="font-family:monospace;font-size:12px">${f.dst_ip}:${f.dst_port}</td>
+            <td><span class="log-badge b-dns" style="font-size:10px">${f.protocol}</span></td>
+            <td style="font-family:monospace;font-size:12px;font-weight:500">${f.domain}</td>
+            <td style="font-weight:600">${f.application}</td>
+            <td><span style="font-size:11px;background:#f3f4f6;padding:2px 6px;border-radius:4px">${f.method}</span></td>
+            <td>${polBadge}</td>
+            <td style="font-size:11.5px">${enfBadge}</td>
+        </tr>`;
+    }).join('');
+}
+
+async function fetchHealth() {
+    try {
+        const r = await fetch('/health');
+        if (!r.ok) return;
+        const data = await r.json();
+        renderHealth(data.websites);
+    } catch(e) {}
+}
+
+function renderHealth(websites) {
+    const grid = document.getElementById('healthGrid');
+    if (!grid || !websites) return;
+
+    grid.innerHTML = Object.values(websites).map(site => {
+        let stateClass = 'green';
+        let stateText = site.state;
+        let latencyText = site.latency_ms ? `${site.latency_ms} ms` : (site.reason || '—');
+
+        if (site.state === 'BLOCKED BY POLICY') {
+            stateClass = 'red';
+            stateText = 'BLOCKED BY POLICY';
+            latencyText = 'Firewall active';
+        } else if (site.state === 'DOWN') {
+            stateClass = 'red';
+            stateText = 'DOWN';
+        }
+
+        return `<div class="kpi" style="padding:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span style="font-weight:700;font-size:14px">${site.name}</span>
+                <span style="font-size:10px;text-transform:uppercase;background:#f3f4f6;padding:2px 6px;border-radius:4px;color:#6b7280">${site.category || 'web'}</span>
+            </div>
+            <div class="kpi-val ${stateClass}" style="font-size:15px;font-weight:700">${stateText}</div>
+            <div class="kpi-sub" style="display:flex;justify-content:space-between;margin-top:4px">
+                <span>${site.domain}</span>
+                <span style="font-weight:600">${latencyText}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
 // ── DNS List ─────────────────────────────────────────────
 function renderDns(dns) {
     const ul = document.getElementById('dnsList');
@@ -246,6 +341,10 @@ async function addRule() {
             renderRules(data.rules);
             document.getElementById('ruleValue').value = '';
             showToast(`✓ Blocked ${type}: ${value}`);
+            if (type === 'domain' || type === 'ip') {
+                setTimeout(() => showToast('Note: Re-open browser tab/app for block to affect active connections', 'info'), 1500);
+            }
+            fetchHealth();
         } else {
             showToast('Failed to save rule: ' + (data.error || 'unknown error'), 'error');
         }
@@ -266,6 +365,7 @@ async function deleteRule(type, value) {
         if (data.success) {
             renderRules(data.rules);
             showToast(`✓ Unblocked ${type}: ${value}`);
+            fetchHealth();
         }
     } catch(e) {
         showToast('Cannot reach server', 'error');
@@ -278,11 +378,13 @@ function updateDashboard(data) {
     const bytes = data.bytes   || 0;
     const mode  = data.mode    || 'offline';
     const src   = data.source_name || 'pcap';
+    const protectReq = data.protection_requested || false;
 
     const modeText = document.getElementById('modeText');
     if (modeText) {
         if (mode === 'live') {
-            modeText.innerHTML = `<span style="color:#10b981">LIVE ●</span> ${src}`;
+            const protTag = protectReq ? ' · <span style="color:#10b981">PROTECT ON</span>' : ' · <span style="color:#f59e0b">MONITOR ONLY</span>';
+            modeText.innerHTML = `<span style="color:#10b981">LIVE ●</span> ${src}${protTag}`;
         } else {
             modeText.innerHTML = `<span style="color:#6366f1">OFFLINE 📄</span> ${src}`;
         }
@@ -302,12 +404,33 @@ function updateDashboard(data) {
         document.getElementById('kpiProcDrops').textContent = (data.processing_drops ?? 0).toLocaleString();
     }
 
+    const wfp = data.wfp;
+    if (document.getElementById('kpiWfpStatus')) {
+        const wfpEl  = document.getElementById('kpiWfpStatus');
+        const wfpSub = document.getElementById('kpiWfpSub');
+        if (wfp && wfp.active) {
+            wfpEl.className = 'kpi-val green';
+            wfpEl.textContent = 'ACTIVE';
+            wfpSub.textContent = `Protection ON · ${wfp.total_filters} kernel filter(s)`;
+        } else if (protectReq) {
+            wfpEl.className = 'kpi-val red';
+            wfpEl.textContent = 'NO ADMIN';
+            wfpSub.textContent = 'Run terminal as Admin for WFP';
+        } else {
+            wfpEl.className = 'kpi-val';
+            wfpEl.textContent = 'OFF';
+            wfpSub.textContent = 'Protection OFF (Monitor Mode)';
+        }
+    }
+
     document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
     document.getElementById('statusText').textContent = (mode === 'live' ? 'Live Capture · ' : 'Offline PCAP · ') + new Date().toLocaleTimeString();
 
     renderProto(data.protocols, total);
     updateLineChart(total);
     renderApps(data.applications);
+    renderDomains(data.domains);
+    renderFlows(data.flows);
     renderDns(data.dns);
     renderHttp(data.http);
     renderAlerts(data.alerts);
@@ -326,5 +449,8 @@ async function fetchData() {
 loadRules();
 initLineChart();
 fetchData();
-setInterval(fetchData, 500);  // 500ms fast polling for live streaming metrics
-setInterval(loadRules, 5000);  // refresh rules every 5s
+fetchHealth();
+setInterval(fetchData, 500);   // 500ms fast polling for live streaming metrics
+setInterval(fetchHealth, 8000); // 8s periodic health check updates
+setInterval(loadRules, 5000);   // refresh rules every 5s
+

@@ -7,6 +7,7 @@
 #include "dpi_engine.h"
 #include "connection_tracker.h"
 #include "stats_collector.h"
+#include "wfp_enforcement.h"
 
 #include <iostream>
 #include <fstream>
@@ -60,7 +61,7 @@ void printUsage(const char* progName) {
     std::cout << "\n=== DeepPacket Analyzer & DPI Engine ===" << std::endl;
     std::cout << "Usage Modes:" << std::endl;
     std::cout << "  1. List Interfaces:   " << progName << " --list-interfaces" << std::endl;
-    std::cout << "  2. Live Capture:      " << progName << " --interface <eth0|wlan0|1>" << std::endl;
+    std::cout << "  2. Live Capture:      " << progName << " --interface <eth0|wlan0|1> [--protect]" << std::endl;
     std::cout << "  3. Offline PCAP:      " << progName << " --pcap <input.pcap> [output.pcap]" << std::endl;
     std::cout << "  4. Legacy Positional: " << progName << " <input.pcap> [output.pcap]\n" << std::endl;
 }
@@ -77,6 +78,7 @@ int main(int argc, char* argv[]) {
     std::string mode = "";
     std::string input_arg = "";
     std::string output_arg = "";
+    bool enable_wfp = false;
 
     // Argument parsing
     for (int i = 1; i < argc; ++i) {
@@ -100,6 +102,8 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--interface" || arg == "-i") {
             mode = "interface";
             if (i + 1 < argc) input_arg = argv[++i];
+        } else if (arg == "--protect") {
+            enable_wfp = true;
         } else if (arg == "--help" || arg == "-h") {
             printUsage(argv[0]);
             return 0;
@@ -137,18 +141,53 @@ int main(int argc, char* argv[]) {
     FastPath fast_path;
     DPIEngine dpi_engine;
     ConnectionTracker connection_tracker;
+
+    // Initialize WFP enforcement ONLY if --protect was explicitly requested
+    WfpEnforcement wfp;
+    if (enable_wfp) {
+        if (wfp.initialize()) {
+            connection_tracker.setEnforcement(&wfp);
+        }
+    }
+
     connection_tracker.getRuleManager().loadRules("rules.json");
+    if (wfp.isActive()) {
+        connection_tracker.reinstallWfpRules();
+    }
 
     StatsCollector stats;
     stats.setMode(source->getMode(), source->getSourceName());
+    stats.setWfpEnforcement(&wfp);
+    stats.setProtectionRequested(enable_wfp);
+
 
     std::cout << "[Pipeline] Starting DPI inspection pipeline (" 
               << source->getMode() << " mode: " << source->getSourceName() << ")..." << std::endl;
+
+    // Background thread for hot-reloading rules when rules_reload.flag exists
+    std::thread rulesReloadThread([&]() {
+        while (g_running) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::ifstream flagFile("rules_reload.flag");
+            if (flagFile.is_open()) {
+                flagFile.close();
+                std::remove("rules_reload.flag");
+                std::cout << "[RuleManager] Hot-reloading rules from rules.json...\n";
+                connection_tracker.getRuleManager().clearAll();
+                connection_tracker.getRuleManager().loadRules("rules.json");
+                if (wfp.isActive()) {
+                    connection_tracker.reinstallWfpRules();
+                }
+            }
+        }
+    });
 
     if (source->isLive()) {
         // --- LIVE CAPTURE PRODUCER-CONSUMER MULTITHREADED PIPELINE ---
         PacketQueue queue(10000);
         g_active_queue = &queue;
+        stats.setPacketQueue(&queue);
+
 
         // Producer Thread: Captures raw packets & pushes to queue
         std::thread producerThread([&]() {
@@ -190,26 +229,38 @@ int main(int argc, char* argv[]) {
                 if (action == PacketAction::FORWARD && !output_arg.empty()) {
                     output.writePacket(raw_pkt);
                 }
+            }
+        });
 
+        // Telemetry Exporter Thread: Periodically writes telemetry to output.json every 500ms
+        std::thread telemetryThread([&]() {
+            while (g_running) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
                 stats.checkAndPrint(connection_tracker.getDnsQueries(),
                                     connection_tracker.getHttpRequests(),
                                     connection_tracker.getAlerts(),
                                     connection_tracker.getApplicationStats(),
+                                    connection_tracker.getDomainStats(),
+                                    connection_tracker.getRecentFlows(),
                                     connection_tracker.getConnectionsCount(),
                                     connection_tracker.getDroppedCount(),
                                     source->getCaptureDrops(),
                                     queue.getProcessingDrops(),
-                                    500); // 500ms periodic snapshot for live streaming UI
+                                    500);
             }
         });
 
         if (producerThread.joinable()) producerThread.join();
         if (consumerThread.joinable()) consumerThread.join();
+        if (telemetryThread.joinable()) telemetryThread.join();
+
 
         stats.printFinal(connection_tracker.getDnsQueries(),
                          connection_tracker.getHttpRequests(),
                          connection_tracker.getAlerts(),
                          connection_tracker.getApplicationStats(),
+                         connection_tracker.getDomainStats(),
+                         connection_tracker.getRecentFlows(),
                          connection_tracker.getConnectionsCount(),
                          connection_tracker.getDroppedCount(),
                          source->getCaptureDrops(),
@@ -242,6 +293,8 @@ int main(int argc, char* argv[]) {
                                 connection_tracker.getHttpRequests(),
                                 connection_tracker.getAlerts(),
                                 connection_tracker.getApplicationStats(),
+                                connection_tracker.getDomainStats(),
+                                connection_tracker.getRecentFlows(),
                                 connection_tracker.getConnectionsCount(),
                                 connection_tracker.getDroppedCount());
         }
@@ -250,14 +303,22 @@ int main(int argc, char* argv[]) {
                          connection_tracker.getHttpRequests(),
                          connection_tracker.getAlerts(),
                          connection_tracker.getApplicationStats(),
+                         connection_tracker.getDomainStats(),
+                         connection_tracker.getRecentFlows(),
                          connection_tracker.getConnectionsCount(),
                          connection_tracker.getDroppedCount());
     }
 
+    g_running = false; // ensure hot-reload thread wakes and exits cleanly
+    if (rulesReloadThread.joinable()) rulesReloadThread.join();
+
+
     source->close();
     output.close();
     connection_tracker.generateReport();
+    wfp.shutdown();
 
     std::cout << "[Pipeline] Analysis complete. Clean shutdown successful." << std::endl;
     return 0;
 }
+

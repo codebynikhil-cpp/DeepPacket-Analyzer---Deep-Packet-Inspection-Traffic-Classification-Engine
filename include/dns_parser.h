@@ -11,7 +11,9 @@ namespace DPI {
 struct DnsAnswer {
     std::string domain;   // The queried hostname
     uint32_t    ip;       // Resolved IPv4 (0 if not A record)
+    uint32_t    ttl = 300; // TTL in seconds (default 300)
 };
+
 
 class DNSParser {
 public:
