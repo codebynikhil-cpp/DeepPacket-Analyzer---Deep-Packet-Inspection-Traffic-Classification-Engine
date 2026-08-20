@@ -39,6 +39,17 @@
       "name": "Wikipedia",
       "domains": ["wikipedia.org", "*.wikipedia.org"],
       "category": "knowledge"
+    },
+    {
+      "name": "Coursera",
+      "domains": ["coursera.org", "*.coursera.org", "cloudfront.net", "*.cloudfront.net"],
+      "category": "education"
+    },
+    {
+      "name": "Reddit",
+      "domains": ["reddit.com", "*.reddit.com", "redd.it", "*.redd.it", "redditmedia.com", "*.redditmedia.com"],
+      "category": "social"
     }
   ]
 }
+

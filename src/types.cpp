@@ -82,7 +82,9 @@ std::string appTypeToString(AppType type) {
         case AppType::STACKOVERFLOW: return "StackOverflow";
         case AppType::LEETCODE:      return "LeetCode";
         case AppType::WIKIPEDIA:     return "Wikipedia";
+        case AppType::COURSERA:      return "Coursera";
         case AppType::MEDIUM:        return "Medium";
+
         case AppType::NPM:           return "npm Registry";
         case AppType::DOCKER:        return "Docker";
         case AppType::HUGGINGFACE:   return "Hugging Face";
@@ -318,6 +320,12 @@ AppType sniToAppType(const std::string& sni) {
         lower_sni.find("wikidata") != std::string::npos) {
         return AppType::WIKIPEDIA;
     }
+    
+    // ── Coursera ──
+    if (lower_sni.find("coursera") != std::string::npos) {
+        return AppType::COURSERA;
+    }
+
     
     // ── Reddit ──
     if (lower_sni.find("reddit") != std::string::npos ||

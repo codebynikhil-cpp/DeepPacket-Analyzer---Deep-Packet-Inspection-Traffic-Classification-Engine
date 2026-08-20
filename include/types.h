@@ -108,7 +108,9 @@ enum class AppType {
     STACKOVERFLOW,
     LEETCODE,
     WIKIPEDIA,
+    COURSERA,
     MEDIUM,
+
     NPM,
     DOCKER,
     HUGGINGFACE,
